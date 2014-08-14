@@ -1,0 +1,88 @@
+/*
+    If you are modifying the style or creating a new one you should be
+    aware of something. There are two systems that use this style sheet
+    
+    The Qt system uses this style sheet and the WebKit.
+*/
+
+#MainWindow {
+    background-color:       black;
+}
+
+/* maybe not used */
+#TFrame {
+    background-color: #999999;
+}
+
+#ConsoleWindow {
+    border-width:       1px;
+    border-color:       white; 
+    border-style:       inset;
+    background-color:   black;
+}
+
+#QPlugLogin {
+    background-color:   gray;
+}
+
+#CommandLine {
+    color:              white;
+    background-color:   #101010; 
+    font-family:        consolas; 
+    font-size:          10pt;
+    border-color:       #888888;
+}
+
+#SubWindowTitle {
+    font-size:          12pt; 
+    font-family:        consolas;
+    color:              #aaaaaa;
+}
+
+#SubWindowMenuButton {
+    border:             outset; 
+    border-color:       #000000;
+    background-color:   #eeeeee;
+    border-image:       url(./media/settings.svg);
+}
+
+#SizerProxy {
+    background-color:   gray;
+}
+
+#ConsoleHTMLView {
+    background-color:   black;
+    color:              white;
+}
+
+/* html color foreground dim */
+.hc_fg_black { color: #000000; }
+.hc_fg_red { color: #990000; }
+.hc_fg_green { color: #009900; }
+.hc_fg_yellow { color: #009999; }
+.hc_fg_blue { color: #000099; }
+.hc_fg_magenta { color: #999900; }
+.hc_fg_cyan { color: #990099; }
+.hc_fg_white { color: #999999; }
+.hc_fg_default { color: #999999; }
+/* html color foreground bright */
+.hc_bfg_black { color: #333333; }
+.hc_bfg_red { color: #ff9999; }
+.hc_bfg_green { color: #99ff99; }
+.hc_bfg_yellow { color: #99ffff; }
+.hc_bfg_blue { color: #9999ff; }
+.hc_bfg_magenta { color: #ffff99; }
+.hc_bfg_cyan { color: #ff99ff; }
+.hc_bfg_white { color: #ffffff; }
+.hc_bfg_default { color: #ffffff; }
+/* html color background */
+.hc_bg_black { background-color: #000000; }
+.hc_bg_red { background-color: #990000; }
+.hc_bg_green { background-color: #009900; }
+.hc_bg_yellow { background-color: #009999; }
+.hc_bg_blue { background-color: #000099; }
+.hc_bg_magenta { background-color: #999900; }
+.hc_bg_cyan { background-color: #990099; }
+.hc_bg_white { background-color: #999999; }
+.hc_bg_default { background-color: #000000; }
+
