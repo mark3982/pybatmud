@@ -18,12 +18,23 @@ class QConsoleWindow(QSubWindow):
         self.ce.move(2, self.height() - (25 + 3))
         self.ce.resize(self.width() - 5, 26)
 
+    def keyPressEvent(self, event):
+        print(event)
+        self.ce.keyPressEvent(event)
+
     def commandEvent(self, line):
         pass
 
+    def focusInEvent(self, event):
+        pass
+
+    def showEvent(self, event):
+        pass
+
     def _commandEvent(self):
-        text = self.ce.text()
-        self.ce.setText('')
+        text = self.ce.text()       # get command box text
+        self.ce.setText('')         # clear command box
+        #self.setprompt(b'')         # clear prompt
         return self.commandEvent(text)
 
     def __init__(self, pwin, title):
@@ -32,24 +43,26 @@ class QConsoleWindow(QSubWindow):
 
         self.setObjectName('ConsoleWindow')
 
-        self.wp = QtWebKit.QWebView(self)
-        self.wp.move(3, 20)
-
         self.ce = QtGui.QLineEdit(self)
         self.ce.setObjectName('CommandLine')
         self.ce.show()
 
+        self.wp = QtWebKit.QWebView(self)
+        self.wp.move(3, 20)
+        self.wp.keyPressEvent = self.keyPressEvent
+
         self.ce.returnPressed.connect(lambda: self._commandEvent())
+
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
         # hopefully this ends up calling resizeEvent
         self.wp.resize(600, 100)
 
         css = self.parent().styleSheet()
-        print(css)
 
         self.wp.setObjectName('ConsoleHTMLView')
         # style="font-size: 8pt; line-height: 1; font-family: consolas;"
-        self.wp.setHtml('<html><head><style>%s</style></head><body style="font-family: consolas; font-size: 10pt; color: white;"><span id="lines">X</span></body></html>' % css)
+        self.wp.setHtml('<html><head><style>%s</style></head><body><span class="lines" id="lines"></span><span class="xprompt" id="xprompt"></span></body></html>' % css)
 
         self.wp.show()
 
@@ -82,7 +95,7 @@ class QConsoleWindow(QSubWindow):
         self.fgcolor = self.nfgcolor
         self.bgcolor = self.nbgcolor
 
-    def processthenaddline(self, line):
+    def processline(self, line, fgdef = None, bgdef = None):
         """Add line but convert terminal codes into HTML and convert from bytes to string.
         """
         # remove crazy escape codes
@@ -116,7 +129,10 @@ class QConsoleWindow(QSubWindow):
 
         line = []
 
-        line.append('<span class=\\"%s %s\\">%s</span>' % (self.fgcolor, self.bgcolor, parts[0].replace(' ', '&nbsp')))
+        fgdef = fgdef or self.fgcolor
+        bgdef = bgdef or self.bgcolor
+
+        line.append('<span class=\\"%s %s\\">%s</span>' % (fgdef, bgdef, parts[0].replace(' ', '&nbsp')))
 
         for x in range(1, len(parts)):
             part = parts[x]
@@ -151,13 +167,27 @@ class QConsoleWindow(QSubWindow):
                     continue
                 raise Exception('Ignored Code "%s"' % code)
 
+            rmsg = rmsg.replace('\t', '&#9;')
             rmsg = rmsg.replace(' ', '&nbsp;')
             line.append('<span class=\\"%s %s\\">%s</span>' % (self.fgcolor, self.bgcolor, rmsg))
 
         line = ''.join(line)
 
+        return line
+
+    def processthenaddline(self, line):
+        line = self.processline(line)
         if len(line) > 0:
             self.addline(line)
+
+    def scrolltoend(self):
+        self.wp.page().mainFrame().evaluateJavaScript('window.scrollTo(0, document.body.scrollHeight);')
+
+    def setprompt(self, prompt, fgdef = None, bgdef = None):
+        # set the prompt AND scroll the window buffer to end
+        prompt = self.processline(prompt, fgdef, bgdef)
+        self.wp.page().mainFrame().evaluateJavaScript('xprompt.innerHTML = "%s";' % prompt)
+        self.scrolltoend()
 
     def addline(self, html):
         # add line to content with magic to make

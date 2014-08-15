@@ -96,27 +96,68 @@ class ProviderStandardEvent:
         for x in range(1, len(parts)):
             part = parts[x]
             if part[0] == 0xf9:
+                line = b''.join(line)
+
+                if line[0] == 0x1:
+                    line = line[1:]
                 # let us extract the prompt and produce an event
                 # with the information that it contains
-                line = (b''.join(line)).decode('utf8', 'ignore')
                 self.game.pushevent('prompt', line)
-                # let us also try to parse the prompt
-                parts = line.strip().split(' ')
-                hp = parts[0]   # health 
-                sp = parts[1]   # skill
-                ep = parts[2]   # endurance
-                ex = parts[3]   # experience
-                hp = hp[hp.find(':') + 1:].split('/')
-                sp = sp[sp.find(':') + 1:].split('/')
-                ep = ep[ep.find(':') + 1:].split('/')
-                ex = int(ex[ex.find(':') + 1:])
-                hp = (int(hp[0]), int(hp[1]))
-                sp = (int(sp[0]), int(sp[1]))
-                ep = (int(ep[0]), int(ep[1]))
-                self.game.pushevent('stats', hp, sp, ep, ex)
+
+                # i could optmize this a bit.. but its hardly called so
+                # i opted for code size reduction and readability
+
+                # let us check if it is a continue type prompt
+                if line.find(b'More') > 0 and line.find(b'[qpbns?]') > 0:
+                    self.game.pushevent('moreprompt', line)
+
+                # let us see if it is a prompt that contains health information
+                if line.find(b'Hp') > 0 and line.find(b'Sp') > 0 and line.find(b'Ep') > 0 and line.find(b'Exp') > 0:
+                    line = self.stripofescapecodes(line)
+                    # drop any crap at the beginning (sometimes 0x01 gets there.. yea i know..)
+                    line = line[line.find('Hp'):]
+                    # let us also try to parse the prompt
+                    parts = line.strip().split(' ')
+                    hp = parts[0]       # health 
+                    sp = parts[1]       # skill
+                    ep = parts[2]       # endurance
+                    ex = parts[3]       # experience
+                    hp = hp[hp.find(':') + 1:].split('/')
+                    sp = sp[sp.find(':') + 1:].split('/')
+                    ep = ep[ep.find(':') + 1:].split('/')
+                    ex = int(ex[ex.find(':') + 1:])
+                    hp = (int(hp[0]), int(hp[1]))
+                    sp = (int(sp[0]), int(sp[1]))
+                    ep = (int(ep[0]), int(ep[1]))
+                    self.game.pushevent('stats', hp, sp, ep, ex)
                 line = []
-                continue
             line.append(part[1:])
+        line = b''.join(line)
+
+        # rift walker entity support for events
+        if line.startswith(b'--=') and line.find(b'=--') == len(line) - 3:
+            # give the event handler the actual complete message
+            self.game.pushevent('riftentitymessage', line)
+            print('riftentitymessage', line)
+            # strip our TELNET and terminal codes so its a pure string
+            line = self.stripofescapecodes(line)
+            # i like strings if im not dealing with binary data
+            line = line.decode('utf8')
+            # drop the crap to simplify others processing it
+            line = line[3:-4].strip()
+            # strip codes from it
+            # let us also try to process it 
+            ename = line[0:line.find('HP')].strip()
+            parts = line[line.find('HP'):].split(' ')
+            hp = parts[0]               # set variable
+            hpchg = parts[1]            # set variable
+            hp = hp[hp.find(':')+1:-2]  # drop crap
+            hp = hp.split('(')          # split into parts
+            hp = (hp[0], hp[1])         # turn into tuple
+            hpchg = hpchg.strip('()')
+            self.game.pushevent('riftentitystats', ename, hp)
+            print('riftentitystats', ename, hp)
+
 
 
 

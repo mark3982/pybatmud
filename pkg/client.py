@@ -22,7 +22,7 @@ class Client:
         if not self.connected:
             raise ConnectionDead()
 
-        if self.inbuf.find(b'\n') < 0:
+        if self.inbuf.find(b'\n') < 0 and self.inbuf.find(b'\xff\xf9') < 0:
             # no pending line so wait if needed
             self.sock.settimeout(block)
         else:
@@ -32,22 +32,31 @@ class Client:
             data = self.sock.recv(4096)
             if not data:
                 raise ConnectionDead()
+            print('data', data)
             self.inbuf = self.inbuf + data
         except:
             pass
 
+        f9mark = self.inbuf.find(b'\xff\xf9')
         # try to get line
         eols = self.inbuf.find(b'\n')
-        if eols < 0:
-            return None
-        line = self.inbuf[0:eols].strip()
-        self.inbuf = self.inbuf[eols + 1:]
 
-        return line
+        if f9mark > -1 and (eols < 0 or f9mark < eols):
+            line = self.inbuf[0:f9mark + 2]
+            self.inbuf = self.inbuf[f9mark + 2:]
+            print('f9markline', line)
+            return line
+        if eols > -1 and (f9mark < 0 or eols < f9mark):
+            line = self.inbuf[0:eols].strip()
+            self.inbuf = self.inbuf[eols + 1:]
+            print('eolsline', line)
+            return line
+        return None
 
     def writeline(self, line):
         if type(line) == str:
             line = bytes(line, 'utf8')
         if not self.connected:
             raise ConnectionDead()
-        self.sock.send(line + b'\n')
+        self.sock.send(line + b'\r\n')
+        print('client sent', line)

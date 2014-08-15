@@ -15,6 +15,7 @@ class QPlugUnknown(QConsoleWindow):
 
         self.resize(800, 500)
 
+        game.registerforevent('prompt', self.event_prompt, Priority.Normal)
         game.registerforevent('banner', self.event_banner, Priority.Normal)
         game.registerforevent('unknown', self.event_unknown, Priority.Normal)
 
@@ -23,6 +24,9 @@ class QPlugUnknown(QConsoleWindow):
 
     def commandEvent(self, command):
         self.game.command(command)
+
+    def event_prompt(self, event, prompt):
+        self.setprompt(prompt, fgdef = 'xprompt')
 
     def event_banner(self, event, lines):
         for line in lines:

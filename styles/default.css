@@ -55,6 +55,13 @@
     color:              white;
 }
 
+#StatBarLeft {
+    background-color:   #99cc99;
+}
+#StatBarRight {
+    background-color:   #999999;
+}
+
 /* html color foreground dim */
 .hc_fg_black { color: #000000; }
 .hc_fg_red { color: #990000; }
@@ -86,3 +93,19 @@
 .hc_bg_white { background-color: #999999; }
 .hc_bg_default { background-color: #000000; }
 
+/* html prompt in console window, actually colored by .hc_* classes */
+.xprompt {
+    font-style:    italic;
+    color:         #448844;
+}
+
+/* lines (history buffer), actually colored by the .hc_* classes above! */
+.lines {
+}
+
+/* html console window */
+body { 
+    color:          white;
+    font-family:    consolas; 
+    font-size:      10pt;
+}
