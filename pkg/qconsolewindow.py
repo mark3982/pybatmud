@@ -85,7 +85,6 @@ class QConsoleWindow(QSubWindow):
     def processthenaddline(self, line):
         """Add line but convert terminal codes into HTML and convert from bytes to string.
         """
-
         # remove crazy escape codes
         parts = line.split(b'\xff')
         
@@ -94,8 +93,12 @@ class QConsoleWindow(QSubWindow):
 
         for x in range(1, len(parts)):
             part = parts[x]
-            if part[0] == 0xff and part[1] == 0xfc:
-                line.append(part[2:])
+            if part[0] == 0xf9:
+                # prompt (clear line buffer), as far as i can tell the server
+                # sends it to setup the prompt to be displayed to the user and
+                # not as part of the normal flow of messages, so i just drop
+                # it in here
+                line = []
                 continue
             line.append(part[1:])
 
@@ -153,7 +156,8 @@ class QConsoleWindow(QSubWindow):
 
         line = ''.join(line)
 
-        self.addline(line)
+        if len(line) > 0:
+            self.addline(line)
 
     def addline(self, html):
         # add line to content with magic to make

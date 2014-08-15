@@ -8,10 +8,8 @@ class QPlugLogin(QSubWindow):
 
     This provides the login needed to enter into the game.
     """
-    def __init__(self, pwin, game, xuser, xpass):
+    def __init__(self, pwin, game):
         super().__init__(pwin)
-        self.xuser = xuser
-        self.xpass = xpass
         self.pwin = pwin
         self.game = game
 

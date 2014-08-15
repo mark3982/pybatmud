@@ -16,8 +16,10 @@ from pkg.game import Priority
 from pkg.qconsolewindow import QConsoleWindow
 from pkg.providerstandardevent import ProviderStandardEvent
 
+
 from plug.qpluglogin import QPlugLogin
 from plug.qplugunknown import QPlugUnknown
+from plug.qplugcharacter import QPlugCharacter
 
 class QMainWindow(QtGui.QWidget):
     def __init__(self):
@@ -43,7 +45,8 @@ class QMainWindow(QtGui.QWidget):
         self.g = Game()
         self.stdep = ProviderStandardEvent(self.g)
         self.unknown = QPlugUnknown(self, self.g)
-        self.login = QPlugLogin(self, self.g, 'kmcg', 'k3ops9')
+        self.character = QPlugCharacter(self, self.g)
+        self.login = QPlugLogin(self, self.g)
 
         self.ticktimer = QtCore.QTimer(self)
         self.ticktimer.timeout.connect(lambda : self.gametick())

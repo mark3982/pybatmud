@@ -22,6 +22,34 @@ class ProviderStandardEvent:
         self.droploginopts = False
         self.banner = []
 
+    def stripofescapecodes(self, line):
+
+        # remove crazy escape codes
+        parts = line.split(b'\xff')
+        
+        line = []
+        line.append(parts[0])
+
+        for x in range(1, len(parts)):
+            part = parts[x]
+            if part[0] == 0xff and part[1] == 0xfc:
+                line.append(part[2:])
+                continue
+            line.append(part[1:])
+
+        line = b''.join(line)
+
+        line = line.decode('utf8', 'replace')
+
+        parts = line.split('\x1b')
+
+        line = []
+
+        for part in parts:
+            part = part[part.find('m') + 1:]
+
+        return ''.join(part)
+
     def event_unknown(self, event, line):
         """Provides some standard higher level events.
 
@@ -57,4 +85,44 @@ class ProviderStandardEvent:
         if self.readbanner:
             self.banner.append(line)
             return True
+
+        # lets us try to figure out what it could be..
+        # remove crazy escape codes
+        parts = line.split(b'\xff')
+        
+        line = []
+        line.append(parts[0])
+
+        for x in range(1, len(parts)):
+            part = parts[x]
+            if part[0] == 0xf9:
+                # let us extract the prompt and produce an event
+                # with the information that it contains
+                line = (b''.join(line)).decode('utf8', 'ignore')
+                self.game.pushevent('prompt', line)
+                # let us also try to parse the prompt
+                parts = line.strip().split(' ')
+                hp = parts[0]   # health 
+                sp = parts[1]   # skill
+                ep = parts[2]   # endurance
+                ex = parts[3]   # experience
+                hp = hp[hp.find(':') + 1:].split('/')
+                sp = sp[sp.find(':') + 1:].split('/')
+                ep = ep[ep.find(':') + 1:].split('/')
+                ex = int(ex[ex.find(':') + 1:])
+                hp = (int(hp[0]), int(hp[1]))
+                sp = (int(sp[0]), int(sp[1]))
+                ep = (int(ep[0]), int(ep[1]))
+                self.game.pushevent('stats', hp, sp, ep, ex)
+                line = []
+                continue
+            line.append(part[1:])
+
+
+
+
+
+
+
+
 
