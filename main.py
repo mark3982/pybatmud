@@ -20,6 +20,7 @@ from pkg.providerstandardevent import ProviderStandardEvent
 from plug.qpluglogin import QPlugLogin
 from plug.qplugunknown import QPlugUnknown
 from plug.qplugcharacter import QPlugCharacter
+from plug.qchannelmanager import QChannelManager
 
 class QMainWindow(QtGui.QWidget):
     def __init__(self):
@@ -44,8 +45,9 @@ class QMainWindow(QtGui.QWidget):
         # creation effects what windows are stacked on top or bottom
         self.g = Game()
         self.stdep = ProviderStandardEvent(self.g)
-        self.unknown = QPlugUnknown(self, self.g)
+        #self.unknown = QPlugUnknown(self, self.g)
         self.character = QPlugCharacter(self, self.g)
+        self.chanman = QChannelManager(self, self.g)
         self.login = QPlugLogin(self, self.g)
 
         self.ticktimer = QtCore.QTimer(self)

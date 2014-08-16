@@ -12,6 +12,8 @@ class Client:
         self.port = port
         self.connect()
 
+        self.fdout = open('outdump', 'w')
+
     def connect(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connected = True
@@ -30,9 +32,9 @@ class Client:
             self.sock.settimeout(0)
         try:
             data = self.sock.recv(4096)
+            self.fdout.write('%s\n' % data)
             if not data:
                 raise ConnectionDead()
-            print('data', data)
             self.inbuf = self.inbuf + data
         except:
             pass
@@ -44,12 +46,10 @@ class Client:
         if f9mark > -1 and (eols < 0 or f9mark < eols):
             line = self.inbuf[0:f9mark + 2]
             self.inbuf = self.inbuf[f9mark + 2:]
-            print('f9markline', line)
             return line
         if eols > -1 and (f9mark < 0 or eols < f9mark):
             line = self.inbuf[0:eols].strip()
             self.inbuf = self.inbuf[eols + 1:]
-            print('eolsline', line)
             return line
         return None
 

@@ -21,6 +21,10 @@
     background-color:   black;
 }
 
+#SubWindow {
+    background-color:   #444444;
+}
+
 #QPlugLogin {
     background-color:   gray;
 }
@@ -37,6 +41,7 @@
     font-size:          12pt; 
     font-family:        consolas;
     color:              #aaaaaa;
+    background-color:   #555555;
 }
 
 #SubWindowMenuButton {

@@ -4,7 +4,7 @@ from PyQt4 import QtWebKit
 
 from pkg.qsubwindow import QSubWindow
 
-class QConsoleWindow(QSubWindow):
+class QConsoleWindow(QtGui.QWidget):
     """A Qt widget that provides a console like window.
 
     A Qt widget that provides a console like window with support for rendering
@@ -14,13 +14,30 @@ class QConsoleWindow(QSubWindow):
     """
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.wp.resize(self.width() - 6, self.height() - (20 + 3 + 25))
+        self.wp.resize(self.width() - 6, self.height() - (3 + 25))
         self.ce.move(2, self.height() - (25 + 3))
         self.ce.resize(self.width() - 5, 26)
 
     def keyPressEvent(self, event):
-        print(event)
-        self.ce.keyPressEvent(event)
+        """Helps ensure keystrokes go to the command box.
+        """
+        # we seem to be sent key press events even
+        # if the command line box has focus, so we
+        # need to check if it has focus, and if not
+        # send it the key pressed then switch focus
+        # to it
+        if not self.ce.hasFocus():
+            self.ce.setFocus()
+            self.ce.keyPressEvent(event)
+        # look for up and down arrows
+        key = event.key()
+        if key == QtCore.Qt.Key_Up or key == QtCore.Qt.Key_Down:
+            if key == QtCore.Qt.Key_Up:
+                up = True
+            else:
+                up = False
+            if self.updowncallback is not None:
+                self.updowncallback(up)
 
     def commandEvent(self, line):
         pass
@@ -32,23 +49,48 @@ class QConsoleWindow(QSubWindow):
         pass
 
     def _commandEvent(self):
+        print(self, '<ENTER>')
         text = self.ce.text()       # get command box text
         self.ce.setText('')         # clear command box
         #self.setprompt(b'')         # clear prompt
         return self.commandEvent(text)
 
-    def __init__(self, pwin, title):
-        super().__init__(pwin, title)
+    def dummyKeyPressEvent(self, event):
+        pass
+
+    def commandchange_event(self):
+        print('CHANGED_EVENT')
+        if self.commandchangedcallback is not None:
+            self.commandchangedcallback(self.ce.text())
+
+    def setcommandchangedcallback(self, cb):
+        self.commandchangedcallback = cb
+
+    def setupdowncallback(self, cb):
+        self.updowncallback = cb
+
+    def setcommandline(self, text):
+        self.ce.setText(text)
+
+    def __init__(self, pwin, css):
+        super().__init__(pwin)
         self.pwin = pwin
 
         self.setObjectName('ConsoleWindow')
 
+        self.commandchangedcallback = None
+        self.updowncallback = None
+
         self.ce = QtGui.QLineEdit(self)
         self.ce.setObjectName('CommandLine')
         self.ce.show()
+        self.ce.textChanged.connect(lambda: self.commandchange_event())
+        #self.ce.setEnabled(False)
+        #self.ce._keyPressEvent = self.ce.keyPressEvent
+        #self.ce.keyPressEvent = self.dummyKeyPressEvent
 
         self.wp = QtWebKit.QWebView(self)
-        self.wp.move(3, 20)
+        self.wp.move(3, 0)
         self.wp.keyPressEvent = self.keyPressEvent
 
         self.ce.returnPressed.connect(lambda: self._commandEvent())
@@ -57,8 +99,6 @@ class QConsoleWindow(QSubWindow):
 
         # hopefully this ends up calling resizeEvent
         self.wp.resize(600, 100)
-
-        css = self.parent().styleSheet()
 
         self.wp.setObjectName('ConsoleHTMLView')
         # style="font-size: 8pt; line-height: 1; font-family: consolas;"
@@ -196,3 +236,5 @@ class QConsoleWindow(QSubWindow):
         # the user has it scrolled upwards when new
         # stuff is added)
         self.wp.page().mainFrame().evaluateJavaScript('var scrollit; if (document.body.scrollTop > document.body.scrollHeight - document.body.clientHeight - 1 || document.body.scrollTop == 0) scrollit = true; else scrollit = false; var m = document.createElement("div"); m.innerHTML = "%s"; lines.appendChild(m); if (scrollit) window.scrollTo(0, document.body.scrollHeight);' % html)
+
+

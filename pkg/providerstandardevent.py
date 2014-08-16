@@ -1,5 +1,11 @@
 from pkg.game import Priority
 
+def onlychars(chars, line):
+    for c in line:
+        if c not in chars:
+            return False
+    return True
+
 class ProviderStandardEvent:
     """Provides standard events.
 
@@ -24,6 +30,7 @@ class ProviderStandardEvent:
 
     def stripofescapecodes(self, line):
 
+        print('tostrip', line)
         # remove crazy escape codes
         parts = line.split(b'\xff')
         
@@ -134,21 +141,52 @@ class ProviderStandardEvent:
             line.append(part[1:])
         line = b''.join(line)
 
+        # get ourselves a pure string which is easier to work with
+        _line = self.stripofescapecodes(line)
+        print('_line', _line)
+
+        # channel messages
+        pc = _line.find('):') 
+        po = _line.find('(')
+        tc = _line.find('>:')
+        to = _line.find('<') 
+        cc = _line.find('}:')
+        co = _line.find('{') 
+        sc = _line.find(']:')
+        so = _line.find('[')
+
+        namechars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-_'
+
+        chname = None
+        if pc > -1 and po > -1 and po < pc and onlychars(namechars, _line[0:po].strip()):
+            chwho = _line[0:po]
+            chmsg = _line[pc + 2:]
+            chname = _line[po + 1:pc]
+        if tc > -1 and to > -1 and to < tc and onlychars(namechars, _line[0:to].strip()):
+            chwho = _line[0:to]
+            chmsg = _line[tc + 2:]
+            chname = _line[to + 1:tc]
+        if cc > -1 and co > -1 and co < cc and onlychars(namechars, _line[0:co].strip()):
+            chwho = _line[0:co]
+            chmsg = _line[cc + 2:]
+            chname = _line[co + 1:cc]
+        if sc > -1 and so > -1 and so < sc and onlychars(namechars, _line[0:so].strip()):
+            chwho = _line[0:so]
+            chmsg = _line[sc + 2:]
+            chname = _line[so + 1:sc]
+        if chname is not None:
+            self.game.pushevent('channelmessage', chname, chwho, chmsg, line)
+            return
+
         # rift walker entity support for events
-        if line.startswith(b'--=') and line.find(b'=--') == len(line) - 3:
+        if _line.startswith('--=') and _line.find('=--') == len(_line) - 3:
             # give the event handler the actual complete message
             self.game.pushevent('riftentitymessage', line)
             print('riftentitymessage', line)
-            # strip our TELNET and terminal codes so its a pure string
-            line = self.stripofescapecodes(line)
-            # i like strings if im not dealing with binary data
-            line = line.decode('utf8')
-            # drop the crap to simplify others processing it
-            line = line[3:-4].strip()
             # strip codes from it
             # let us also try to process it 
-            ename = line[0:line.find('HP')].strip()
-            parts = line[line.find('HP'):].split(' ')
+            ename = _line[0:_line.find('HP')].strip()
+            parts = _line[_line.find('HP'):].split(' ')
             hp = parts[0]               # set variable
             hpchg = parts[1]            # set variable
             hp = hp[hp.find(':')+1:-2]  # drop crap
@@ -157,7 +195,7 @@ class ProviderStandardEvent:
             hpchg = hpchg.strip('()')
             self.game.pushevent('riftentitystats', ename, hp)
             print('riftentitystats', ename, hp)
-
+            return
 
 
 

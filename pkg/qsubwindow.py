@@ -14,6 +14,10 @@ class QSubWindow(QtGui.QFrame):
         self.sizerproxy.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
         self.sizerproxy.enterEvent = self.cursorEnterSizer
         self.sizerproxy.leaveEvent = self.cursorLeaveSizer
+        self.body = QtGui.QWidget(self)
+        self.body.move(0, 20)
+
+        self.setObjectName('SubWindow')
 
         self.title = title
         if title is not None:
@@ -35,8 +39,14 @@ class QSubWindow(QtGui.QFrame):
     def resizeEvent(self, event):
         self.sizerproxy.move(self.width() - 10, self.height() - 10)
         self.sizerproxy.raise_()
+        self.body.resize(self.width(), self.height() - 20)
         if self.title is not None:
             self.ltitle.resize(self.width() - 20, 20)
+
+    def getclientarea(self):
+        """Get widget that represents the client area for this window.
+        """
+        return self.body
 
     def mousePressEvent(self, event):
         self.raise_()
