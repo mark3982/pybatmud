@@ -62,8 +62,7 @@ class Game:
                     self.activate()
             if line is None:
                 break
-            # push it as an unknown event first
-            self.pushevent('unknown', line)
+            self.pushevent('rawunknown', line)
 
     def pushevent(self, event, *args):
         """Push the event to any registered callbacks.

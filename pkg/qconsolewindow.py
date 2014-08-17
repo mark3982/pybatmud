@@ -179,6 +179,9 @@ class QConsoleWindow(QtGui.QWidget):
             cstr = part[0:part.find('m')]
             rmsg = part[part.find('m') + 1:]
             codes = cstr[1:].split(';')
+            if len(codes) < 1:
+                self.fgcolor = self.nfgcolor
+                self.bgcolor = self.nbgcolor
             for code in codes:
                 if len(code) < 1:
                     continue

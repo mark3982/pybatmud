@@ -22,7 +22,9 @@ class QChannelManager:
             'Tells':    ('$tells',),
             'Sales':    ('#sales',),
             'Sky-':     ('#sky',),
-            'Newbie':   ('#newbie',)
+            'Wanted':   ('#wanted',),
+            'Newbie':   ('#newbie',),
+            'Ghost':    ('#ghost',),
         })
 
         game.registerforevent('prompt', self.event_prompt, Priority.Normal)
@@ -38,6 +40,7 @@ class QChannelManager:
             for i in range(0, tabctrl.count()):
                 page = tabctrl.widget(i)
                 chanlist = page.chanlist
+                print('check if [%s] in chanlist [%s]' % (chan, chanlist))
                 if chan in chanlist:
                     print('    sent to page')
                     page.processthenaddline(line)

@@ -23,7 +23,7 @@ class ProviderStandardEvent:
     def __init__(self, game):
         self.game = game
         # we are mainly concerned with translating unknown events into higher level events
-        self.game.registerforevent('unknown', self.event_unknown, Priority.High)
+        self.game.registerforevent('rawunknown', self.event_rawunknown, Priority.High)
         self.readbanner = True
         self.droploginopts = False
         self.banner = []
@@ -54,10 +54,11 @@ class ProviderStandardEvent:
 
         for part in parts:
             part = part[part.find('m') + 1:]
+            line.append(part)
 
-        return ''.join(part)
+        return ''.join(line)
 
-    def event_unknown(self, event, line):
+    def event_rawunknown(self, event, line):
         """Provides some standard higher level events.
 
         This is mainly going to take unknown events, which are the most basic
@@ -93,20 +94,42 @@ class ProviderStandardEvent:
             self.banner.append(line)
             return True
 
-        # lets us try to figure out what it could be..
-        # remove crazy escape codes
-        parts = line.split(b'\xff')
+        # break out special codes
+        print('before', line)
+        parts = line.split(b'\x1b')
         
+        skip = False
+
         line = []
         line.append(parts[0])
 
         for x in range(1, len(parts)):
             part = parts[x]
+            if part[0] == ord('<'):
+                skip = True
+            if part[0] == ord('>'):
+                skip = False
+                # drop b'>XX' and leave remaining 
+                part = part[3:]
+            if skip is False:
+                line.append(b'\x1b' + part)
+
+        line = b''.join(line)
+        print('after', line)
+
+        # lets us try to figure out what it could be..
+        # remove crazy escape codes
+        parts = line.split(b'\xff')
+
+        line = []
+        line.append(parts[0])
+
+        # break out prompts
+        for x in range(1, len(parts)):
+            part = parts[x]
             if part[0] == 0xf9:
                 line = b''.join(line)
 
-                if line[0] == 0x1:
-                    line = line[1:]
                 # let us extract the prompt and produce an event
                 # with the information that it contains
                 self.game.pushevent('prompt', line)
@@ -157,26 +180,41 @@ class ProviderStandardEvent:
 
         namechars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-_'
 
-        chname = None
-        if pc > -1 and po > -1 and po < pc and onlychars(namechars, _line[0:po].strip()):
-            chwho = _line[0:po]
-            chmsg = _line[pc + 2:]
-            chname = _line[po + 1:pc]
-        if tc > -1 and to > -1 and to < tc and onlychars(namechars, _line[0:to].strip()):
-            chwho = _line[0:to]
-            chmsg = _line[tc + 2:]
-            chname = _line[to + 1:tc]
-        if cc > -1 and co > -1 and co < cc and onlychars(namechars, _line[0:co].strip()):
-            chwho = _line[0:co]
-            chmsg = _line[cc + 2:]
-            chname = _line[co + 1:cc]
-        if sc > -1 and so > -1 and so < sc and onlychars(namechars, _line[0:so].strip()):
-            chwho = _line[0:so]
-            chmsg = _line[sc + 2:]
-            chname = _line[so + 1:sc]
-        if chname is not None:
+        # decide which are valid
+        li = []
+        if po > -1 and pc > -1 and pc > po:
+            li.append((po, pc))
+        if to > -1 and tc > -1 and tc > to:
+            li.append((to, tc))
+        if co > -1 and cc > -1 and cc > co:
+            li.append((co, cc))
+        if so > -1 and sc > -1 and sc > so:
+            li.append((so, sc))
+
+        # find the lowest
+        _lhv = 999999
+        _lhi = None
+        for l in li:
+            if l[0] < _lhv:
+                _lhv = l[0]
+                _lhi = l
+
+        if _lhi is not None:
+            uo = _lhi[0]
+            uc = _lhi[1]
+
+            if uc == 0:
+                # {bat}: Woocca shakes the magic 8 ball, and it reveals: My Sources Say No.\x1b[m\r\n'
+                chname = _line[uo + 1:uc]
+                tmp = _line[uc + 1].strip().split(' ')
+                chwho = tmp[0]
+                chmsg = ' '.join(tmp[1:])
+            else:
+                # kmcg [bat]: hello world
+                chwho = _line[0:uo]
+                chmsg = _line[uc + 2:]
+                chname = _line[uo + 1:uc]
             self.game.pushevent('channelmessage', chname, chwho, chmsg, line)
-            return
 
         # rift walker entity support for events
         if _line.startswith('--=') and _line.find('=--') == len(_line) - 3:
@@ -197,6 +235,9 @@ class ProviderStandardEvent:
             print('riftentitystats', ename, hp)
             return
 
+        # discard current event, and push line with \xff<XX..\xff>XX removed
+        self.game.pushevent('unknown', line)
+        return True
 
 
 
