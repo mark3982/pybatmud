@@ -25,9 +25,11 @@ def hexcolordimer(hexcolor, rf, gf, bf):
 def hexcolordimblue(hexcolor, bf):
     r = hexcolor[0]
     g = hexcolor[1]
-    b = int(hexcolor[2] * bf)
-    diff = hexcolor[2] - b
-    diff = int(diff * 0.5)
+    b = hexcolor[2]
+    diff = int(b * bf)
+    #diff = hexcolor[2] - b
+    #diff = int(diff * 0.5)
+
     r = r + diff
     g = g + diff
     if r > 0xff:
@@ -141,7 +143,24 @@ class QConsoleWindow(QtGui.QWidget):
 
         self.wp.setObjectName('ConsoleHTMLView')
         # style="font-size: 8pt; line-height: 1; font-family: consolas;"
-        self.wp.setHtml('<html><head><style>%s</style></head><body><div class="lines" id="lines"></div><span class="xprompt" id="xprompt"></span></body></html>' % css)
+        self.wp.setHtml(' \
+            <html><head><style>%s</style></head><body> \
+            <script language="javascript"> \
+                function addline(line) { \
+                    var scrollit; \
+                    if (document.body.scrollTop > document.body.scrollHeight - document.body.clientHeight - 1 || document.body.scrollTop == 0) \
+                        scrollit = true; \
+                    else \
+                        scrollit = false; \
+                    var m = document.createElement("div"); \
+                    m.innerHTML = line; \
+                    lines.appendChild(m); \
+                    if (scrollit) \
+                        window.scrollTo(0, document.body.scrollHeight); \
+                } \
+            </script> \
+            <div class="lines" id="lines"></div><span class="xprompt" id="xprompt"></span></body></html>' 
+        % css)
 
         self.wp.show()
 
@@ -217,10 +236,9 @@ class QConsoleWindow(QtGui.QWidget):
             part = parts[x]
             if part[0] == '#':
                 hexcolor = part[1:part.find(';')]
-
                 hexcolor = hexcolortotuple(hexcolor)
                 hexcolor = hexcolordimblue(hexcolor, 0.4)
-                hexcolor = hexcolordimer(hexcolor, 1.0, 1.0, 1.0)
+                #hexcolor = hexcolordimer(hexcolor, 1.0, 1.0, 0.6)
                 hexcolor = tupletohexcolor(hexcolor)
 
                 rmsg = part[part.find(';') + 1:]
@@ -282,10 +300,11 @@ class QConsoleWindow(QtGui.QWidget):
         self.wp.page().mainFrame().evaluateJavaScript('window.scrollTo(0, document.body.scrollHeight);')
 
     def setprompt(self, prompt, fgdef = None, bgdef = None):
-        # set the prompt AND scroll the window buffer to end
+        # set the prompt AND //commentedout//scroll the window buffer to end//
         prompt = self.processline(prompt, fgdef, bgdef)
         self.wp.page().mainFrame().evaluateJavaScript('xprompt.innerHTML = "%s";' % prompt)
-        self.scrolltoend()
+        if not self.hasFocus():
+            self.scrolltoend()
 
     def addline(self, html):
         # add line to content with magic to make
@@ -293,6 +312,7 @@ class QConsoleWindow(QtGui.QWidget):
         # to end of document (helps to lock it if
         # the user has it scrolled upwards when new
         # stuff is added)
-        self.wp.page().mainFrame().evaluateJavaScript('var scrollit; if (document.body.scrollTop > document.body.scrollHeight - document.body.clientHeight - 1 || document.body.scrollTop == 0) scrollit = true; else scrollit = false; var m = document.createElement("div"); m.innerHTML = "%s"; lines.appendChild(m); if (scrollit) window.scrollTo(0, document.body.scrollHeight);' % html)
+        self.wp.page().mainFrame().evaluateJavaScript('addline("%s");' % html)
+        return
 
 

@@ -1,3 +1,5 @@
+import time
+
 from pkg.client import Client
 from pkg.client import ConnectionDead
 
@@ -53,7 +55,7 @@ class Game:
         while True:
             # read a single line
             try:
-                line = self.c.readline(block = block)
+                block, line = self.c.readline(block = block)
             except ConnectionDead:
                 if self.connected:
                     self.connected = False
@@ -62,7 +64,12 @@ class Game:
                     self.activate()
             if line is None:
                 break
-            self.pushevent('rawunknown', line)
+            if not block:
+                # a line which may contain batmud client extension sequences
+                self.pushevent('rawunknown', line)
+            else:
+                # a block is a batmud client extension block of sequences
+                self.pushevent('blockunknown', line)
 
     def pushevent(self, event, *args):
         """Push the event to any registered callbacks.
@@ -72,7 +79,10 @@ class Game:
         # call in priority ordering (highest first)
         for x in range(0, len(self.ereg[event])):
             cb = self.ereg[event][x]
+            st = time.time()
             res = cb[0](event, *args)
+            dt = time.time() - st
+            #print('call %s seconds for %s' % (dt, cb[0]))
             if res is True:
                 # callback has specified to not forward
                 # the event any further and we shall drop

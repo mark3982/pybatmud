@@ -123,7 +123,7 @@
     to be wrapped here with out manually inserting line breaks
 */
 .lines {
-    width:      600px;
+    width:      560px;
     word-wrap:  break-word;
 }
 

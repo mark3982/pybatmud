@@ -1,7 +1,16 @@
 import socket
+import time
 
 class ConnectionDead(Exception):
     pass
+
+def findofcount(s, n, c):
+    x = 0
+    p = -1
+    while x < c:
+        p = s.find(n, p + 1)
+        x = x + 1
+    return p
 
 class Client:
     def __init__(self, host, port):
@@ -12,7 +21,8 @@ class Client:
         self.port = port
         self.connect()
 
-        self.fdout = open('outdump', 'w')
+        self.fdindump = open('dataindump', 'w')
+        self.fdlndump = open('lineindump', 'w')
 
     def connect(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -25,16 +35,14 @@ class Client:
         if not self.connected:
             raise ConnectionDead()
 
-        if self.inbuf.find(b'\n') < 0 and self.inbuf.find(b'\xff\xf9') < 0 and self.inbuf.find(b'\x1b>'):
-            # no pending line so wait if needed
-            self.sock.settimeout(block)
-        else:
-            # dont wait, we have a pending line
-            self.sock.settimeout(0)
+        # do not wait because our caller may need to
+        # do other things besides wait for data
+        self.sock.settimeout(0)
+
         try:
             data = self.sock.recv(4096)
-            self.fdout.write('%s\n' % data)
-            self.fdout.flush()
+            self.fdindump.write('%s\n' % data)
+            self.fdindump.flush()
             if not data:
                 raise ConnectionDead()
             self.inbuf = self.inbuf + data
@@ -43,8 +51,7 @@ class Client:
 
         f9mark = self.inbuf.find(b'\xff\xf9')
         eols = self.inbuf.find(b'\n')
-        #spbegin = self.inbuf.find(b'\x1b<')
-        spbegin = -1
+        spbegin = self.inbuf.find(b'\x1b<')
 
         # use unrealistic values
         if f9mark == -1:
@@ -58,28 +65,60 @@ class Client:
         inbuf = self.inbuf
 
         # do we have a special mark beginning?
-        '''
         if spbegin < eols and spbegin < f9mark:
-            # wait until we have a sepcial mark ending
-            spend = inbuf.find(b'\x1b>')
-            if spend < 0:
-                return None
-            # wait until we have all the character of the code
-            if spend + 1 + 3 > len(inbuf):
-                return None
-            line = inbuf[0:spend + 4]
-            self.inbuf = inbuf[spend + 4:]
-            return line
-        '''
+            st = time.time()
+            count = 1
+            x = spbegin + 1
+            # optimization shortcut.. obviously, if we have less
+            # closing tags than opening tags then there is no way
+            # we can find a matching number of closing tags
+            oc = inbuf.count(b'\x1b<')
+            cc = inbuf.count(b'\x1b>')
+            if cc < oc:
+                print('cc:%s oc:%s' % (cc, oc))
+                print('delta-time:%s' % (time.time() - st))
+                return (None, None)
+            while x + 1 < len(inbuf) and count > 0:
+                if inbuf[x] == 0x1b and inbuf[x + 1] == ord('<'):
+                    count += 1
+                if inbuf[x] == 0x1b and inbuf[x + 1] == ord('>'):
+                    count -= 1
+                x = x + 1
+            if count > 0:
+                print('count:%s' % count)
+                # we could not find an end to the sequence of encapculation
+                return (None, None)
+            print('sequence done')
+            # we have found an end to the sequence of encapsulation
+            if spbegin > 0:
+                # it was an inline sequence
+                f9mark = inbuf.find(b'\xff\xf9', x + 1)
+                eols = inbuf.find(b'\n', x + 1)
+                spbegin = 0x100000
+                if f9mark < 0:
+                    f9mark = 0x100000
+                if eols < 0:
+                    eols = 0x100000
+            else:
+                # it was a block sequence
+                line = inbuf[0:x + 3]
+                self.inbuf = inbuf[x + 3:]
+                return (True, line)
+
         if f9mark < eols and f9mark < spbegin:
             line = self.inbuf[0:f9mark + 2]
             self.inbuf = self.inbuf[f9mark + 2:]
-            return line
+            self.fdlndump.write('%s\n' % line)
+            self.fdlndump.flush()
+            return (False, line)
+
         if eols < f9mark and eols < spbegin:
             line = self.inbuf[0:eols].strip()
             self.inbuf = self.inbuf[eols + 1:]
-            return line
-        return None
+            self.fdlndump.write('%s\n' % line)
+            self.fdlndump.flush()
+            return (False, line)
+        return (None, None)
 
     def writeline(self, line):
         if type(line) == str:

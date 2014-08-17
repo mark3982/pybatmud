@@ -1,3 +1,11 @@
+"""Implements ProviderStandardEvent Object
+
+    I think eventually I will add more support to using the
+    batmud client extension stuff, but for now we are mainly
+    just ignoring most of it except the color. --kmcg
+"""
+import time
+
 from pkg.game import Priority
 
 def onlychars(chars, line):
@@ -24,6 +32,7 @@ class ProviderStandardEvent:
         self.game = game
         # we are mainly concerned with translating unknown events into higher level events
         self.game.registerforevent('rawunknown', self.event_rawunknown, Priority.High)
+        self.game.registerforevent('blockunknown', self.event_blockunknown, Priority.High)
         self.readbanner = True
         self.droploginopts = False
         self.banner = []
@@ -68,12 +77,12 @@ class ProviderStandardEvent:
         # i opted for code size reduction and readability
 
         # let us check if it is a continue type prompt
-        if line.find(b'More') > 0 and line.find(b'[qpbns?]') > 0:
+        if line.find(b'More') > -1 and line.find(b'[qpbns?]') > -1:
             self.game.pushevent('moreprompt', line)
             return
 
         # let us see if it is a prompt that contains health information
-        if line.find(b'Hp') > 0 and line.find(b'Sp') > 0 and line.find(b'Ep') > 0 and line.find(b'Exp') > 0:
+        if line.find(b'Hp') > -1 and line.find(b'Sp') > -1 and line.find(b'Ep') > -1 and line.find(b'Exp') > -1:
             line = self.stripofescapecodes(line)
             # drop any crap at the beginning (sometimes 0x01 gets there.. yea i know..)
             line = line[line.find('Hp'):]
@@ -94,6 +103,55 @@ class ProviderStandardEvent:
             return
         return
 
+    def _procline(self, line):
+        while line[-1].find(b'\n') > -1:
+            out = b''.join(line)
+            self.event_rawunknown(None, out[0:out.find(b'\n')].strip())
+            line = [out[out.find(b'\n') + 1:]]
+        return line
+
+    def event_blockunknown(self, event, block):
+        parts = block.split(b'\x1b')
+        
+        if len(parts[0]) > 0:
+            raise Exception('Not Block')
+
+        line = []
+
+        print('block', block)
+
+        for x in range(1, len(parts)):
+            part = parts[x]
+
+            if part[0] == ord('<'):
+                if part[1:3] == b'20':
+                    # color code
+                    line.append(b'\x1b#' + part[3:3+6] + b';')
+                continue
+            if part[0] == ord('>'):
+                rem = part[3:]
+                line.append(rem)
+                print('append', rem)
+                line = self._procline(line)
+                continue
+            if part[0] == ord('['):
+                rem = b'\x1b' + part
+                line.append(rem)
+                line = self._procline(line)
+                continue
+            if part[0] == ord('|'):
+                rem = part[1:]
+                line.append(rem)
+                print('append', rem)
+                line = self._procline(line)
+                continue
+        # handle special block prompt
+        if block.find(b'\x1b<10spec_prompt') == 0:
+            self.handleprompt(b''.join(line))
+            return
+        self.event_rawunknown(None, b''.join(line))
+        return
+
     def event_rawunknown(self, event, line):
         """Provides some standard higher level events.
 
@@ -106,7 +164,7 @@ class ProviderStandardEvent:
         to interpret unknown events then it might be a good idea to put that code 
         here.
         """
-
+        print('rawevent', line)
         # we are done with login options
         if self.droploginopts and line.startswith(b'3 - '):
             self.droploginopts = False
@@ -151,17 +209,18 @@ class ProviderStandardEvent:
                     prompt.append(part[1:])
                 continue
             if part[0] == ord('<'):
+                print('START', part)
                 if part[1:] == b'10spec_prompt':
                     isprompt = True
                     prompt = []
                 else:
                     if len(part) > 3:
+                        # test if its a hex code
                         try:
-                            # test if its a hex code
                             hexcolor = part[3:]
                             tmp = int(hexcolor, 16)
                             line.append(b'\x1b#' + hexcolor + b';')
-                        except:
+                        except ValueError:
                             pass
                 continue
             if part[0] == ord('>'):
@@ -200,6 +259,13 @@ class ProviderStandardEvent:
 
         # get ourselves a pure string which is easier to work with
         _line = self.stripofescapecodes(line)
+
+        parts = _line.split(' ')
+        if len(parts) > 3:
+            if parts[1] == 'tells' and parts[2] == 'you' and parts[3].startswith("'"):
+                who = parts[0]
+                msg = ' '.join(parts[3:]).strip("'")
+                self.game.pushevent('tell', who, msg, line)
 
         # channel messages
         pc = _line.find('):') 
