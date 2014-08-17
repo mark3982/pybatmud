@@ -118,8 +118,6 @@ class ProviderStandardEvent:
 
         line = []
 
-        print('block', block)
-
         for x in range(1, len(parts)):
             part = parts[x]
 
@@ -130,7 +128,6 @@ class ProviderStandardEvent:
                     try:
                         tmp = int(hexcolor, 16)
                         hexcolor = hexcolor.ljust(6, b'0')
-                        print('hexcolor', hexcolor)
                         line.append(b'\x1b#' + hexcolor + b';')
                     except ValueError:
                         pass
@@ -138,7 +135,6 @@ class ProviderStandardEvent:
             if part[0] == ord('>'):
                 rem = part[3:]
                 line.append(rem)
-                print('append', rem)
                 line = self._procline(line)
                 continue
             if part[0] == ord('['):
@@ -149,7 +145,6 @@ class ProviderStandardEvent:
             if part[0] == ord('|'):
                 rem = part[1:]
                 line.append(rem)
-                print('append', rem)
                 line = self._procline(line)
                 continue
         # handle special block prompt
@@ -203,23 +198,28 @@ class ProviderStandardEvent:
         line = []
         line.append(parts[0])
 
-        isprompt = False
+        isinner = False
+        innertype = None
+        inner = []
 
         for x in range(1, len(parts)):
             part = parts[x]
             if len(part) < 1:
                 continue
             if part[0] == ord('|'):
-                if not isprompt:
+                if not isinner:
                     line.append(part[1:])
                 else:
-                    prompt.append(part[1:])
+                    inner.append(part[1:])
                 continue
             if part[0] == ord('<'):
                 print('START', part)
                 if part[1:] == b'10spec_prompt':
-                    isprompt = True
-                    prompt = []
+                    isinner = True
+                    inner = []
+                    innertype = 'prompt'
+                elif part[1:] == b'10spec_battle':
+                    innertype = 'battle'
                 else:
                     if len(part) > 3:
                         # test if its a hex code
@@ -231,14 +231,16 @@ class ProviderStandardEvent:
                             pass
                 continue
             if part[0] == ord('>'):
-                if isprompt:
-                    prompt = b''.join(prompt)
-                    self.handleprompt(prompt)
-                    isprompt = False
+                if isinner:
+                    if innertype == 'prompt':
+                        self.handleprompt(b''.join(inner))
+                    if innertype == 'battle':
+                        self.game.pushevent('battleline', b''.join(inner))
+                    isinner = False
                 part = part[3:]
                 line.append(part)
                 continue
-            if not isprompt:
+            if not isinner:
                 line.append(b'\x1b' + part)
 
         line = b''.join(line)
@@ -335,10 +337,9 @@ class ProviderStandardEvent:
             hpchg = parts[1]            # set variable
             hp = hp[hp.find(':')+1:-1]  # drop crap
             hp = hp.split('(')          # split into parts
-            hp = (hp[0], hp[1])         # turn into tuple
+            hp = (int(hp[0]), int(hp[1]))         # turn into tuple
             hpchg = hpchg.strip('()')
             self.game.pushevent('riftentitystats', ename, hp)
-            print('riftentitystats', ename, hp)
             return
 
 

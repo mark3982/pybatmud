@@ -72,6 +72,40 @@
     background-color:   #999999;
 }
 
+#StatsHealth > #StatBarLeft {
+    background-color:   #ff9999;
+}
+#StatsSpirit > #StatBarLeft {
+    background-color:   #9999ff;
+}
+#StatsEndurance > #StatBarLeft {
+    background-color:   #99ff99;
+}
+#StatsEntityHealth > #StatBarLeft {
+    background-color:   #ff99ff;
+}
+
+#RisingLabelPointsEntityHealth {
+    font-size:          34pt;
+    color:              #ffff99;
+}
+#RisingLabelPointsHealth {
+    font-size:          34pt;
+    color:              #ff9999;
+}
+#RisingLabelPointsSpirit {
+    font-size:          34pt;
+    color:              #9999ff;
+}
+#RisingLabelPointsEndurance {
+    font-size:          34pt;
+    color:              #99ff99;
+}
+#RisingLabelPointsExperience {
+    font-size:          34pt;
+    color:              #ff99ff;
+}
+
 /* html color foreground dim */
 .hc_fg_black { color: #000000; }
 .hc_fg_red { color: #990000; }

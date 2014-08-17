@@ -35,7 +35,6 @@ class QMainWindow(QtGui.QWidget):
 
         self.setStyleSheet(css)
 
-
         self.setObjectName('MainWindow')
 
         self.resize(850, 700)
