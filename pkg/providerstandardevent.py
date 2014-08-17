@@ -29,8 +29,6 @@ class ProviderStandardEvent:
         self.banner = []
 
     def stripofescapecodes(self, line):
-
-        print('tostrip', line)
         # remove crazy escape codes
         parts = line.split(b'\xff')
         
@@ -57,6 +55,44 @@ class ProviderStandardEvent:
             line.append(part)
 
         return ''.join(line)
+
+    def handleprompt(self, line):
+        if len(line) < 1:
+            return
+        print('handleprompt', line)
+        # let us extract the prompt and produce an event
+        # with the information that it contains
+        self.game.pushevent('prompt', line)
+
+        # i could optmize this a bit.. but its hardly called so
+        # i opted for code size reduction and readability
+
+        # let us check if it is a continue type prompt
+        if line.find(b'More') > 0 and line.find(b'[qpbns?]') > 0:
+            self.game.pushevent('moreprompt', line)
+            return
+
+        # let us see if it is a prompt that contains health information
+        if line.find(b'Hp') > 0 and line.find(b'Sp') > 0 and line.find(b'Ep') > 0 and line.find(b'Exp') > 0:
+            line = self.stripofescapecodes(line)
+            # drop any crap at the beginning (sometimes 0x01 gets there.. yea i know..)
+            line = line[line.find('Hp'):]
+            # let us also try to parse the prompt
+            parts = line.strip().split(' ')
+            hp = parts[0]       # health 
+            sp = parts[1]       # skill
+            ep = parts[2]       # endurance
+            ex = parts[3]       # experience
+            hp = hp[hp.find(':') + 1:].split('/')
+            sp = sp[sp.find(':') + 1:].split('/')
+            ep = ep[ep.find(':') + 1:].split('/')
+            ex = int(ex[ex.find(':') + 1:])
+            hp = (int(hp[0]), int(hp[1]))
+            sp = (int(sp[0]), int(sp[1]))
+            ep = (int(ep[0]), int(ep[1]))
+            self.game.pushevent('stats', hp, sp, ep, ex)
+            return
+        return
 
     def event_rawunknown(self, event, line):
         """Provides some standard higher level events.
@@ -95,7 +131,6 @@ class ProviderStandardEvent:
             return True
 
         # break out special codes
-        print('before', line)
         parts = line.split(b'\x1b')
         
         skip = False
@@ -103,19 +138,37 @@ class ProviderStandardEvent:
         line = []
         line.append(parts[0])
 
+        isprompt = False
+
         for x in range(1, len(parts)):
             part = parts[x]
+            if len(part) < 1:
+                continue
+            if part[0] == ord('|'):
+                if not isprompt:
+                    line.append(part[1:])
+                else:
+                    prompt.append(part[1:])
+                continue
             if part[0] == ord('<'):
-                skip = True
+                if part[1:] == b'10spec_prompt':
+                    isprompt = True
+                    prompt = []
+                continue
             if part[0] == ord('>'):
-                skip = False
-                # drop b'>XX' and leave remaining 
+                if isprompt:
+                    prompt = b''.join(prompt)
+                    self.handleprompt(prompt)
+                    isprompt = False
                 part = part[3:]
-            if skip is False:
+                line.append(part)
+                continue
+            if not isprompt:
                 line.append(b'\x1b' + part)
 
         line = b''.join(line)
-        print('after', line)
+
+        print('line', line)
 
         # lets us try to figure out what it could be..
         # remove crazy escape codes
@@ -129,44 +182,14 @@ class ProviderStandardEvent:
             part = parts[x]
             if part[0] == 0xf9:
                 line = b''.join(line)
-
-                # let us extract the prompt and produce an event
-                # with the information that it contains
-                self.game.pushevent('prompt', line)
-
-                # i could optmize this a bit.. but its hardly called so
-                # i opted for code size reduction and readability
-
-                # let us check if it is a continue type prompt
-                if line.find(b'More') > 0 and line.find(b'[qpbns?]') > 0:
-                    self.game.pushevent('moreprompt', line)
-
-                # let us see if it is a prompt that contains health information
-                if line.find(b'Hp') > 0 and line.find(b'Sp') > 0 and line.find(b'Ep') > 0 and line.find(b'Exp') > 0:
-                    line = self.stripofescapecodes(line)
-                    # drop any crap at the beginning (sometimes 0x01 gets there.. yea i know..)
-                    line = line[line.find('Hp'):]
-                    # let us also try to parse the prompt
-                    parts = line.strip().split(' ')
-                    hp = parts[0]       # health 
-                    sp = parts[1]       # skill
-                    ep = parts[2]       # endurance
-                    ex = parts[3]       # experience
-                    hp = hp[hp.find(':') + 1:].split('/')
-                    sp = sp[sp.find(':') + 1:].split('/')
-                    ep = ep[ep.find(':') + 1:].split('/')
-                    ex = int(ex[ex.find(':') + 1:])
-                    hp = (int(hp[0]), int(hp[1]))
-                    sp = (int(sp[0]), int(sp[1]))
-                    ep = (int(ep[0]), int(ep[1]))
-                    self.game.pushevent('stats', hp, sp, ep, ex)
+                print('BREAKOUTPROMPT', line)
+                self.handleprompt(line)
                 line = []
             line.append(part[1:])
         line = b''.join(line)
 
         # get ourselves a pure string which is easier to work with
         _line = self.stripofescapecodes(line)
-        print('_line', _line)
 
         # channel messages
         pc = _line.find('):') 

@@ -121,10 +121,10 @@ class QChannelManager:
         """
         css = self.parent.styleSheet()
         chgrpwidget = QSubWindow(self.parent, 'Channel Window')
-        chgrpwidget.setStyleSheet(css)
         chgrpwidget.resize(600, 400)
         clientarea = chgrpwidget.getclientarea()
         qtabwidget = QtGui.QTabWidget(clientarea)
+        qtabwidget.setObjectName('ChannelTab')
         def __resizeEvent(event):
             qtabwidget.resize(clientarea.width(), clientarea.height())
         clientarea.resizeEvent = __resizeEvent

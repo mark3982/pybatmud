@@ -38,6 +38,12 @@ class QConsoleWindow(QtGui.QWidget):
                 up = False
             if self.updowncallback is not None:
                 self.updowncallback(up)
+        if key == QtCore.Qt.Key_PageUp or key == QtCore.Qt.Key_PageDown:
+            if key == QtCore.Qt.Key_PageUp:
+                seg = -50
+            else:
+                seg = 50
+            self.wp.page().mainFrame().evaluateJavaScript('window.scrollTo(0, document.body.scrollTop + %s);' % seg)    
 
     def commandEvent(self, line):
         pass
@@ -59,7 +65,6 @@ class QConsoleWindow(QtGui.QWidget):
         pass
 
     def commandchange_event(self):
-        print('CHANGED_EVENT')
         if self.commandchangedcallback is not None:
             self.commandchangedcallback(self.ce.text())
 
@@ -102,7 +107,7 @@ class QConsoleWindow(QtGui.QWidget):
 
         self.wp.setObjectName('ConsoleHTMLView')
         # style="font-size: 8pt; line-height: 1; font-family: consolas;"
-        self.wp.setHtml('<html><head><style>%s</style></head><body><span class="lines" id="lines"></span><span class="xprompt" id="xprompt"></span></body></html>' % css)
+        self.wp.setHtml('<html><head><style>%s</style></head><body><div class="lines" id="lines"></div><span class="xprompt" id="xprompt"></span></body></html>' % css)
 
         self.wp.show()
 
@@ -176,10 +181,10 @@ class QConsoleWindow(QtGui.QWidget):
 
         for x in range(1, len(parts)):
             part = parts[x]
-            cstr = part[0:part.find('m')]
+            cstr = part[1:part.find('m')]
             rmsg = part[part.find('m') + 1:]
-            codes = cstr[1:].split(';')
-            if len(codes) < 1:
+            codes = cstr.split(';')
+            if len(cstr) < 1:
                 self.fgcolor = self.nfgcolor
                 self.bgcolor = self.nbgcolor
             for code in codes:

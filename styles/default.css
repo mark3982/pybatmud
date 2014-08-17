@@ -37,6 +37,11 @@
     border-color:       #888888;
 }
 
+#ChannelTab {
+    font-size:          12pt;
+    font-family:        consolas;
+}
+
 #SubWindowTitle {
     font-size:          12pt; 
     font-family:        consolas;
@@ -104,13 +109,28 @@
     color:         #448844;
 }
 
-/* lines (history buffer), actually colored by the .hc_* classes above! */
+/*
+    this is a DIV element that surrounds all the individual lines, where each
+    individual line is also an DIV element with one or more span elements inside
+    of it which represent the different color/style parts of the line
+
+    i mainly use this to force a wrap of the text at 600px which the server will
+    normally respect except since the client connects using the batclient extension
+    certain messages will not be wrapped by the server for example channel messages
+    because it makes it VERY hard to parse for them when they wrap so this helps to
+    catch that problem with out us doing any additional processing to manually break
+    the text -- in a nutshell if the server fails to wrap the line we will force it
+    to be wrapped here with out manually inserting line breaks
+*/
 .lines {
+    width:      600px;
+    word-wrap:  break-word;
 }
 
 /* html console window */
 body { 
-    color:          white;
-    font-family:    consolas; 
-    font-size:      10pt;
+    color:              white;              /* is overidden by .hc_* classes anyway */
+    /* background-color:   #345634; if enabled will provide a neat effect */
+    font-family:        consolas; 
+    font-size:          10pt;
 }

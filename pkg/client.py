@@ -43,7 +43,8 @@ class Client:
 
         f9mark = self.inbuf.find(b'\xff\xf9')
         eols = self.inbuf.find(b'\n')
-        spbegin = self.inbuf.find(b'\x1b<')
+        #spbegin = self.inbuf.find(b'\x1b<')
+        spbegin = -1
 
         # use unrealistic values
         if f9mark == -1:
@@ -57,6 +58,7 @@ class Client:
         inbuf = self.inbuf
 
         # do we have a special mark beginning?
+        '''
         if spbegin < eols and spbegin < f9mark:
             # wait until we have a sepcial mark ending
             spend = inbuf.find(b'\x1b>')
@@ -68,7 +70,7 @@ class Client:
             line = inbuf[0:spend + 4]
             self.inbuf = inbuf[spend + 4:]
             return line
-
+        '''
         if f9mark < eols and f9mark < spbegin:
             line = self.inbuf[0:f9mark + 2]
             self.inbuf = self.inbuf[f9mark + 2:]
