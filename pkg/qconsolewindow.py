@@ -4,6 +4,40 @@ from PyQt4 import QtWebKit
 
 from pkg.qsubwindow import QSubWindow
 
+'''
+    These are used to manipulate hex colors. I mainly had to implement these
+    to adjust the colors that the server sent for the batmud client extension.
+
+    It was sending color codes for a bright blue that was honestly hard to read,
+    so I used these function to adjust the blue component to not be so strong and
+    to spread it onto the red and green components with `hexcolordimblue`. 
+
+    I might need to write a better function that can automatically dim any component
+    that becomes too bright thus handling any situation.
+'''
+def hexcolortotuple(hexcolor):
+    return (int(hexcolor[0:2], 16), int(hexcolor[2:4], 16), int(hexcolor[4:6], 16))
+def hexcolordimer(hexcolor, rf, gf, bf):
+    r = int(hexcolor[0] * rf)
+    g = int(hexcolor[1] * gf)
+    b = int(hexcolor[2] * bf)
+    return (r, g, b)
+def hexcolordimblue(hexcolor, bf):
+    r = hexcolor[0]
+    g = hexcolor[1]
+    b = int(hexcolor[2] * bf)
+    diff = hexcolor[2] - b
+    diff = int(diff * 0.5)
+    r = r + diff
+    g = g + diff
+    if r > 0xff:
+        r = 0xff
+    if g > 0xff:
+        g = 0xff
+    return (r, g, b)
+def tupletohexcolor(tup):
+    return '%02x%02x%02x' % (tup[0], tup[1], tup[2])
+
 class QConsoleWindow(QtGui.QWidget):
     """A Qt widget that provides a console like window.
 
@@ -181,6 +215,22 @@ class QConsoleWindow(QtGui.QWidget):
 
         for x in range(1, len(parts)):
             part = parts[x]
+            if part[0] == '#':
+                hexcolor = part[1:part.find(';')]
+
+                hexcolor = hexcolortotuple(hexcolor)
+                hexcolor = hexcolordimblue(hexcolor, 0.4)
+                hexcolor = hexcolordimer(hexcolor, 1.0, 1.0, 1.0)
+                hexcolor = tupletohexcolor(hexcolor)
+
+                rmsg = part[part.find(';') + 1:]
+                rmsg = rmsg.replace('\t', '&#9;')
+                rmsg = rmsg.replace(' ', '&nbsp;')
+                line.append('<span style=\\"color: #%s;\\">%s</span>' % (hexcolor, rmsg))
+                #line.append(rmsg)
+                continue
+            if part[0] != '[':
+                print('Expected [!')
             cstr = part[1:part.find('m')]
             rmsg = part[part.find('m') + 1:]
             codes = cstr.split(';')

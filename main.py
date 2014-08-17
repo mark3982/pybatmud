@@ -54,7 +54,7 @@ class QMainWindow(QtGui.QWidget):
         self.ticktimer.timeout.connect(lambda : self.gametick())
         self.ticktimer.start(50)
 
-        self.setWindowTitle('Batmud Connection Information')
+        self.setWindowTitle('PyBatMud (Python Client For BatMud Using Qt) [kmcg3413@gmail.com]')
 
     def getwin(self, titlepad = 10):
         tframe = QSubWindow(self)

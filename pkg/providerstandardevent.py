@@ -154,6 +154,15 @@ class ProviderStandardEvent:
                 if part[1:] == b'10spec_prompt':
                     isprompt = True
                     prompt = []
+                else:
+                    if len(part) > 3:
+                        try:
+                            # test if its a hex code
+                            hexcolor = part[3:]
+                            tmp = int(hexcolor, 16)
+                            line.append(b'\x1b#' + hexcolor + b';')
+                        except:
+                            pass
                 continue
             if part[0] == ord('>'):
                 if isprompt:
@@ -182,11 +191,12 @@ class ProviderStandardEvent:
             part = parts[x]
             if part[0] == 0xf9:
                 line = b''.join(line)
-                print('BREAKOUTPROMPT', line)
                 self.handleprompt(line)
                 line = []
             line.append(part[1:])
         line = b''.join(line)
+
+        self.game.pushevent('unknown', line)
 
         # get ourselves a pure string which is easier to work with
         _line = self.stripofescapecodes(line)
@@ -250,17 +260,13 @@ class ProviderStandardEvent:
             parts = _line[_line.find('HP'):].split(' ')
             hp = parts[0]               # set variable
             hpchg = parts[1]            # set variable
-            hp = hp[hp.find(':')+1:-2]  # drop crap
+            hp = hp[hp.find(':')+1:-1]  # drop crap
             hp = hp.split('(')          # split into parts
             hp = (hp[0], hp[1])         # turn into tuple
             hpchg = hpchg.strip('()')
             self.game.pushevent('riftentitystats', ename, hp)
             print('riftentitystats', ename, hp)
             return
-
-        # discard current event, and push line with \xff<XX..\xff>XX removed
-        self.game.pushevent('unknown', line)
-        return True
 
 
 
