@@ -126,7 +126,14 @@ class ProviderStandardEvent:
             if part[0] == ord('<'):
                 if part[1:3] == b'20':
                     # color code
-                    line.append(b'\x1b#' + part[3:3+6] + b';')
+                    hexcolor = part[3:]
+                    try:
+                        tmp = int(hexcolor, 16)
+                        hexcolor = hexcolor.ljust(6, b'0')
+                        print('hexcolor', hexcolor)
+                        line.append(b'\x1b#' + hexcolor + b';')
+                    except ValueError:
+                        pass
                 continue
             if part[0] == ord('>'):
                 rem = part[3:]

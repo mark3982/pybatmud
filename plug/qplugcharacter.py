@@ -15,7 +15,9 @@ class QStatBar(QtGui.QFrame):
         self.wleft.setObjectName('StatBarLeft')
         self.wright.setObjectName('StatBarRight')
         self.tprefix = tprefix
+        self.text.resize(self.width(), self.height())
         self.update()
+        self.text.move(self.width() * 0.5, 0)
 
     def settextprefix(self, text):
         self.tprefix = text
@@ -33,6 +35,7 @@ class QStatBar(QtGui.QFrame):
         lw = val * self.width()
         rw = self.width() - lw
         self.wleft.resize(lw, self.height())
+        self.wright.move(lw, 0)
         self.wright.resize(rw, self.height())
         self.text.setText('%s %s/%s' % (self.tprefix, self.xvalue, self.xmax))
 
@@ -41,6 +44,8 @@ class QPlugCharacter(QSubWindow):
     def __init__(self, pwin, game):
         super().__init__(pwin)
         game.registerforevent('stats', self.event_stats)
+
+        self.resizeon(False)
 
         self.resize(400, 100)
 

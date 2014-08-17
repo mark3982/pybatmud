@@ -17,6 +17,8 @@ class QSubWindow(QtGui.QFrame):
         self.body = QtGui.QWidget(self)
         self.body.move(0, 20)
 
+        self._resizeon = True
+
         self.setObjectName('SubWindow')
 
         self.title = title
@@ -35,6 +37,13 @@ class QSubWindow(QtGui.QFrame):
             self.ltitle.move(20, 0)
 
         self.move(self.parent().width() * 0.5 - self.width() * 0.5, self.parent().height() * 0.5 - self.height() * 0.5)
+
+    def resizeon(self, on):
+        self._resizeon = on
+        if on:
+            self.sizerproxy.show()
+        else:
+            self.sizerproxy.hide()
 
     def resizeEvent(self, event):
         self.sizerproxy.move(self.width() - 10, self.height() - 10)
@@ -56,7 +65,8 @@ class QSubWindow(QtGui.QFrame):
         h = self.height()
 
         if x > w - 10 and y > h - 10:
-            self.sizing = True
+            if self._resizeon:
+                self.sizing = True
         else:
             self.moving = True
         self.oldx = self.x()
