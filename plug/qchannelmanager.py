@@ -11,6 +11,7 @@ are represented by tabs.
 
 Author: LK McGuire (kmcg3413@gmail.com)
 """
+from PyQt4 import QtCore
 from PyQt4 import QtGui
 
 from pkg.qsubwindow import QSubWindow
@@ -30,14 +31,9 @@ class QChannelManager:
         self.chgrpwidgets = []
 
         # default channels created (maybe need to try to load from disk here!)
-        self.createchannelgroup({
+        self.mainchgrpwidget = self.createchannelgroup({
             'All':      ('$all',),        # first tab channels named All
             'Tells':    ('$tells',),
-            'Sales':    ('#sales',),
-            'Sky-':     ('#sky',),
-            'Wanted':   ('#wanted',),
-            'Newbie':   ('#newbie',),
-            'Ghost':    ('#ghost',),
         })
 
         game.registerforevent('prompt', self.event_prompt, Priority.Normal)
@@ -46,15 +42,56 @@ class QChannelManager:
         game.registerforevent('channelmessage', self.event_channelmessage, Priority.Normal)
         game.registerforevent('tell', self.event_tell, Priority.Normal)
 
+        self.tabflashertimer = QtCore.QTimer(self.parent)
+        self.tabflashertimer.timeout.connect(lambda : self.tabflasher())
+        self.tabflashertimer.start(1000)
+        self.tabflasherlist = []
+
+    def tabflasheradd(self, console):
+        if console not in self.tabflasherlist:
+            self.tabflasherlist.append(console)
+        console.sethadfocus(False)
+
+    def tabflasherdel(self, console):
+        self.tabflasherlist.remove(console)
+
+    def tabflasher(self):
+        # flash all on the list
+        toremove = []
+        for console in self.tabflasherlist:
+            dontflash = False
+            if console.hadfocus():
+                toremove.append(console)
+                dontflash = True
+
+            tabwidget = console.parent().parent()
+            tabindex = tabwidget.indexOf(console)
+            text = tabwidget.tabText(tabindex)
+            # flash tab by changing the text to get the user's attention
+            if text[0] == '[':
+                text = text[1:-1]
+            else:
+                if not dontflash:
+                    text = '[' + text + ']'
+            tabwidget.setTabText(tabindex, text)
+        for console in toremove:
+            self.tabflasherlist.remove(console)
     def event_channelmessage(self, event, chan, who, msg, line):
-        chan = ('#%s' % chan).lower()
+        added = False
+        chan = ('#' + chan).lower()
         for chgrp in self.chgrpwidgets:
             tabctrl = chgrp[1]
             for i in range(0, tabctrl.count()):
-                page = tabctrl.widget(i)
-                chanlist = page.chanlist
+                console = tabctrl.widget(i)
+                chanlist = console.chanlist
                 if chan in chanlist:
-                    page.processthenaddline(line)
+                    self.addlinetoconsole(console, line)
+                    added = True
+        if not added:
+            # automatically create a channel to hold conversation
+            console = self.createchannel(self.mainchgrpwidget, (chan,))
+            self.addlinetoconsole(console, line)
+
     def event_prompt(self, event, prompt):
         """Set the prompt on all managed consoles.
         """
@@ -78,21 +115,25 @@ class QChannelManager:
         that accepts it without using the $tell input then we create
         a new channel with that input only.
         """
-        who = '!%s' % who
+        who = '!' + who
         delivered = False
         for chgrp in self.chgrpwidgets:
             tabctrl = chgrp[1]
             for i in range(0, tabctrl.count()):
-                page = tabctrl.widget(i)
-                if who in page.chanlist:
-                    page.processthenaddline(line)
+                console = tabctrl.widget(i)
+                if who in console.chanlist:
+                    self.addlinetoconsole(console, line)
                     delivered = True
                 if '$tells' in page.chanlist:
-                    page.processthenaddline(line)
+                    # special channel mostly from pre-development work, but
+                    # i am keeping around just because im not ready to remove
+                    # it yet
+                    self.addlinetoconsole(console, line)
         if delivered is False:
             # ok we did not find a window to handle this.. so we need
             # to create a channel in a window that can handle it
-            pass
+            console = self.createchannel(self.mainchgrpwidget, (who,))
+            self.addlinetoconsole(console, line)
 
     def event_lineunknown(self, event, line):
         """Route the message to the appropriate page in tab control.
@@ -108,10 +149,22 @@ class QChannelManager:
             tabctrl = chgrp[1]
             # go through pages on tab control
             for i in range(0, tabctrl.count()):
-                page = tabctrl.widget(i)
-                chanlist = page.chanlist
+                console = tabctrl.widget(i)
+                chanlist = console.chanlist
                 if '$all' in chanlist:
-                    page.processthenaddline(line)
+                    self.addlinetoconsole(console, line)
+
+    def addlinetoconsole(self, console, line):
+        tabwidget = console.parent().parent()
+
+        # would have used an `is` but some python implementations
+        # may not handle it correctly so to be safe i use the `==`
+        # -kmcg
+        if tabwidget.currentWidget() != console:
+            print('ADDING FLAHSER')
+            self.tabflasheradd(console)
+
+        console.processthenaddline(line)
 
     def commandEvent(self, line):
         """When the command input on any channel window changes.
@@ -169,21 +222,28 @@ class QChannelManager:
                     page.setcommandline(text)
         self.chistory[-1] = text
 
-    def createchannel(self, tabwidget, channels):
+    def createchannel(self, chgrpwidget, channels):
         """Create channel in specified channel group.
         """
+        tabwidget = chgrpwidget.qtabwidget
         css = self.parent.styleSheet()
         qconsole = QConsoleWindow(None, css)
         qconsole.setupdowncallback(self.updowncallback)
         qconsole.setcommandchangedcallback(self.commandchangedcallback)
         tabwidget.addTab(qconsole, ', '.join(channels))
+
         qconsole.chanlist = channels
         qconsole.commandEvent = self.commandEvent
         qconsole.show()
+        return qconsole
+
+    def tab_contextmenu_event(self, tabwidget):
+        print('CONTEXT MENU')
 
     def createchannelgroup(self, channelgroups = {}):
         """Create a new channel group window.
         """
+        allconsole = None
         css = self.parent.styleSheet()
         chgrpwidget = QSubWindow(self.parent, 'Channel Window')
         chgrpwidget.resize(600, 400)
@@ -191,6 +251,11 @@ class QChannelManager:
         clientarea = chgrpwidget.getclientarea()
         qtabwidget = QtGui.QTabWidget(clientarea)
         qtabwidget.setObjectName('ChannelTab')
+        qtabwidget.setMovable(True)
+        # setup ability to right click on tab widget and get a menu
+        qtabwidget.contextMenuEvent = lambda event: self.tab_contextmenu_event(qtabwidget)
+
+        chgrpwidget.qtabwidget = qtabwidget
         def __resizeEvent(event):
             qtabwidget.resize(clientarea.width(), clientarea.height())
         clientarea.resizeEvent = __resizeEvent
@@ -198,10 +263,17 @@ class QChannelManager:
         css = self.parent.styleSheet()
         for changrptitle in channelgroups:
             channels = channelgroups[changrptitle]
-            self.createchannel(qtabwidget, channels)
+            console = self.createchannel(chgrpwidget, channels)
+            if '$all' in channels:
+                allconsole = console
         # save the sub-window and tab widget
         self.chgrpwidgets.append([chgrpwidget, qtabwidget, channels])
         chgrpwidget.show()
         qtabwidget.show()
+
+        if allconsole is not None:
+            qtabwidget.setCurrentWidget(allconsole)
+
+        return chgrpwidget
 
 

@@ -74,7 +74,6 @@ class ProviderStandardEvent:
     def handleprompt(self, line):
         if len(line) < 1:
             return
-        print('handleprompt', line)
         # let us extract the prompt and produce an event
         # with the information that it contains
         self.game.pushevent('prompt', line)
@@ -126,8 +125,6 @@ class ProviderStandardEvent:
 
         # look for the odd unwrapped sequence of blocks
         parts = block.split(b'\x1b')
-        
-        print('blockunknown', block)
 
         if len(parts[0]) > 0:
             raise Exception('Not Block')
@@ -181,11 +178,9 @@ class ProviderStandardEvent:
         return
 
     def event_chunkunknown(self, event, chunk):
-        print('chunkunknown', chunk)
         self.blockrefinedhold = self.blockrefinedhold + chunk
 
     def event_blockrefined(self, event, block):
-        print('blockrefined', block)
         # try to break this into lines if at all possible, and anything that can not be made into a line lets just
         # hold on to it until we can make a line...
         lines = block.split(b'\n')
@@ -207,13 +202,11 @@ class ProviderStandardEvent:
         to interpret unknown events then it might be a good idea to put that code 
         here.
         """
-        print('lineunknown', line)
         # anything in hold under block refined should be prefixed onto this line
         if len(self.blockrefinedhold) > 0:
             line = self.blockrefinedhold + line
             self.blockrefinedhold = b''
             # cancel this event.. create new event but with entire line
-            print('   re-created!')
             self.game.pushevent('lineunknown', line)
             return True
 
@@ -302,7 +295,6 @@ class ProviderStandardEvent:
         if _line.startswith('--=') and _line.find('=--') == len(_line) - 3:
             # give the event handler the actual complete message
             self.game.pushevent('riftentitymessage', line)
-            print('riftentitymessage', line)
             # strip codes from it
             # let us also try to process it 
             ename = _line[0:_line.find('HP')].strip()

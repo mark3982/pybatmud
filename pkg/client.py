@@ -49,7 +49,6 @@ class Client:
         self.connect()
 
     def reader(self):
-        print('READER', self)
         # will need to wrap for socket exception.. close socket if possible.. force reconnect
         chunk = b''
         while True:
@@ -59,7 +58,6 @@ class Client:
                 continue
             sock = self.xsock[0]
             if len(chunk) < 2:
-                print('   READ')
                 data = sock.recv(4096)
                 self.fdindump.write('%s\n' % data)
                 self.fdindump.flush()

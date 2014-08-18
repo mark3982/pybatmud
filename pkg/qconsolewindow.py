@@ -73,15 +73,9 @@ class QConsoleWindow(QtGui.QWidget):
             plaintextlower = plaintext.lower()
             # grab command line
             cmdline = self.ce.text()
-            print('cmdline', cmdline)
             if len(cmdline) > 0:
                 # find last word of cmdline
                 partialword = cmdline.split(' ')[-1].lower()
-                print('partialword', partialword)
-                print('plaintext', plaintext)
-                fd = open('tmp', 'w')
-                fd.write(plaintext)
-                fd.close()
                 posa = plaintextlower.rfind(' ' + partialword)
                 posb = plaintextlower.rfind('\n' + partialword)
                 posc = plaintextlower.rfind('\t' + partialword)
@@ -93,7 +87,6 @@ class QConsoleWindow(QtGui.QWidget):
                 if posc > pos:
                     pos = posc
 
-                print('pos', pos)
                 if pos > -1:
                     # find last alphanumeric character after position `pos + 1`
                     for x in range(pos + 1, len(plaintext)):
@@ -101,7 +94,6 @@ class QConsoleWindow(QtGui.QWidget):
                             break
 
                     word = plaintext[pos + 1:x]
-                    print('word', word)
                     self.ce.setText(cmdline[0:cmdline.rfind(' ') + 1] + word)
 
 
@@ -119,17 +111,22 @@ class QConsoleWindow(QtGui.QWidget):
                 seg = 50
             self.wp.page().mainFrame().evaluateJavaScript('window.scrollTo(0, document.body.scrollTop + %s);' % seg)    
 
-    def commandEvent(self, line):
-        pass
+    def hadfocus(self):
+        return self._hadfocus
 
-    def focusInEvent(self, event):
-        pass
+    def sethadfocus(self, val):
+        self._hadfocus = val
+
+    # little debugging and functionality inspection tool
+    #def event(self, event):
+    #    print('event', event)
+    #    return super().event(event)
 
     def showEvent(self, event):
-        pass
+        super().showEvent(event)
+        self.sethadfocus(True)
 
     def _commandEvent(self):
-        print(self, '<ENTER>')
         text = self.ce.text()       # get command box text
         self.ce.setText('')         # clear command box
         #self.setprompt(b'')         # clear prompt
@@ -154,6 +151,8 @@ class QConsoleWindow(QtGui.QWidget):
     def __init__(self, pwin, css):
         super().__init__(pwin)
         self.pwin = pwin
+
+        self._hadfocus = False
 
         self.setObjectName('ConsoleWindow')
 

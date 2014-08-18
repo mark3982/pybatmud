@@ -129,7 +129,6 @@ class QPlugCharacter(QSubWindow):
         self.elast = hp
 
     def event_stats(self, event, hp, sp, ep, ex):
-        print('stats', hp, sp, ep, ex)
         self.sbhp.setmax(hp[1])
         self.sbhp.setval(hp[0])
         self.sbsp.setmax(sp[1])
@@ -143,10 +142,6 @@ class QPlugCharacter(QSubWindow):
             spd = sp[0] - self.last[1][0]
             epd = ep[0] - self.last[2][0]
             exd = ex - self.last[3]
-
-            print('hpd:%s spd:%s epd:%s exd:%s' % (hpd, spd, epd, exd))
-            print(hp, sp, ep, ex)
-            print(self.last)
 
             if hpd != 0:
                 posoff = (-random.randint(0, 20), 0)
