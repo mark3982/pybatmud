@@ -117,9 +117,18 @@ class ProviderStandardEvent:
         return line
 
     def event_blockunknown(self, event, block):
+        if block.find(b'\x1b<10spec_map\x1b|NoMapSupport\x1b>10') == 0:
+            return True
+
+        # ignore this until we can do something with it later
+        if block.find(b'\x1b<99BAT_MAPPER') == 0:
+            return True
+
         # look for the odd unwrapped sequence of blocks
         parts = block.split(b'\x1b')
         
+        print('blockunknown', block)
+
         if len(parts[0]) > 0:
             raise Exception('Not Block')
 
@@ -158,9 +167,9 @@ class ProviderStandardEvent:
         #\x1b<41summon_rift_entity 9\x1b>41....
         if block.find(b'\x1b<41') == 0:
             line = block[4:block.find(b'\x1b', 1)]
-            line = line.split(' ')
-            spellname = line[0]
-            spellticks = line[1]
+            line = line.split(b' ')
+            spellname = line[0].decode('utf8')
+            spellticks = line[1].decode('utf8')
             self.game.pushevent('spelltick', spellname, spellticks)
             return
         #<10chan_newbie\x1b|\x1b[1;33mToffzen [newbie]: a boost\x1b[m\r\n\x1b>10
@@ -172,9 +181,11 @@ class ProviderStandardEvent:
         return
 
     def event_chunkunknown(self, event, chunk):
+        print('chunkunknown', chunk)
         self.blockrefinedhold = self.blockrefinedhold + chunk
 
     def event_blockrefined(self, event, block):
+        print('blockrefined', block)
         # try to break this into lines if at all possible, and anything that can not be made into a line lets just
         # hold on to it until we can make a line...
         lines = block.split(b'\n')
@@ -196,11 +207,13 @@ class ProviderStandardEvent:
         to interpret unknown events then it might be a good idea to put that code 
         here.
         """
+        print('lineunknown', line)
         # anything in hold under block refined should be prefixed onto this line
         if len(self.blockrefinedhold) > 0:
             line = self.blockrefinedhold + line
             self.blockrefinedhold = b''
             # cancel this event.. create new event but with entire line
+            print('   re-created!')
             self.game.pushevent('lineunknown', line)
             return True
 

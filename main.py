@@ -67,8 +67,20 @@ class QMainWindow(QtGui.QWidget):
         """
         self.g.tick(block = 0)
 
+class QLocalApplication(QtGui.QApplication):
+    def __init__(self, argv):
+        super().__init__(argv)
+    def notify(self, receiver, event):
+        if event.type() == QtCore.QEvent.KeyPress and event.key() == QtCore.Qt.Key_Tab:
+            if isinstance(receiver, QConsoleWindow):
+                receiver.keyPressEvent(event)                   # hand directly the QConsoleWindow
+            if isinstance(receiver.parent(), QConsoleWindow):
+                receiver.parent().keyPressEvent(event)          # hand to parent which is QConsoleWindow
+            return True
+        return super().notify(receiver, event)
+
 def main():
-    app = QtGui.QApplication(sys.argv)
+    app = QLocalApplication(sys.argv)
     # Cleanlooks
     # Plastique
     # Motfif

@@ -67,6 +67,44 @@ class QConsoleWindow(QtGui.QWidget):
             self.ce.keyPressEvent(event)
         # look for up and down arrows
         key = event.key()
+        if key == QtCore.Qt.Key_Tab:
+            # grab text from html
+            plaintext = self.wp.page().mainFrame().toPlainText()[-4096:]
+            plaintextlower = plaintext.lower()
+            # grab command line
+            cmdline = self.ce.text()
+            print('cmdline', cmdline)
+            if len(cmdline) > 0:
+                # find last word of cmdline
+                partialword = cmdline.split(' ')[-1].lower()
+                print('partialword', partialword)
+                print('plaintext', plaintext)
+                fd = open('tmp', 'w')
+                fd.write(plaintext)
+                fd.close()
+                posa = plaintextlower.rfind(' ' + partialword)
+                posb = plaintextlower.rfind('\n' + partialword)
+                posc = plaintextlower.rfind('\t' + partialword)
+
+                if posa > posb:
+                    pos = posa
+                else:
+                    pos = posb
+                if posc > pos:
+                    pos = posc
+
+                print('pos', pos)
+                if pos > -1:
+                    # find last alphanumeric character after position `pos + 1`
+                    for x in range(pos + 1, len(plaintext)):
+                        if not plaintext[x].isalnum():
+                            break
+
+                    word = plaintext[pos + 1:x]
+                    print('word', word)
+                    self.ce.setText(cmdline[0:cmdline.rfind(' ') + 1] + word)
+
+
         if key == QtCore.Qt.Key_Up or key == QtCore.Qt.Key_Down:
             if key == QtCore.Qt.Key_Up:
                 up = True
@@ -199,7 +237,7 @@ class QConsoleWindow(QtGui.QWidget):
         """
 
         # convert to string and replace any crazy characters
-        line = line.decode('utf8', 'replace')
+        line = line.decode('utf8', 'ignore')
 
         # escape any quotes because we encode this string into
         # javascript call and unescaped quotes will screw it up
