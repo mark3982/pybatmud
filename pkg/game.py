@@ -55,7 +55,7 @@ class Game:
         while True:
             # read a single line
             try:
-                block, line = self.c.readline(block = block)
+                block, line = self.c.readline()
             except ConnectionDead:
                 if self.connected:
                     self.connected = False

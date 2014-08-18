@@ -119,6 +119,7 @@ class QConsoleWindow(QtGui.QWidget):
 
         self.setObjectName('ConsoleWindow')
 
+        self.promptfirstset = True
         self.commandchangedcallback = None
         self.updowncallback = None
 
@@ -205,10 +206,7 @@ class QConsoleWindow(QtGui.QWidget):
         for x in range(1, len(parts)):
             part = parts[x]
             if part[0] == 0xf9:
-                # prompt (clear line buffer), as far as i can tell the server
-                # sends it to setup the prompt to be displayed to the user and
-                # not as part of the normal flow of messages, so i just drop
-                # it in here
+                # just ignore prompt crap
                 line = []
                 continue
             line.append(part[1:])
@@ -303,8 +301,9 @@ class QConsoleWindow(QtGui.QWidget):
         # set the prompt AND //commentedout//scroll the window buffer to end//
         prompt = self.processline(prompt, fgdef, bgdef)
         self.wp.page().mainFrame().evaluateJavaScript('xprompt.innerHTML = "%s";' % prompt)
-        if not self.hasFocus():
+        if self.promptfirstset:
             self.scrolltoend()
+            self.promptfirstset = False
 
     def addline(self, html):
         # add line to content with magic to make

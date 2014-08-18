@@ -1,22 +1,40 @@
 """The Qt widget module that will display player stats such as health, skill, endurance, and experience.
 """
+import random
+
 from PyQt4 import QtGui
 from PyQt4 import QtCore
 
 from pkg.qsubwindow import QSubWindow
 
 class QRisingLabel(QtGui.QLabel):
-    def __init__(self, parent, text, stylename):
+    list = []
+
+    def __init__(self, parent, text, stylename, posoff):
         super().__init__(parent)
         self.ticktimer = QtCore.QTimer(self)
-        self.ticktimer.timeout.connect(lambda : self.tick())
+
+        def __tick():
+            try:
+                self.tick()
+            except:
+                self.ticktimer.stop()
+
+        self.ticktimer.timeout.connect(__tick)
         self.setObjectName(stylename)
         self.raise_()
         self.setText(text)
         self.show()
-        self.ticktimer.start(100)
+        self.posoff = posoff
         self.move(self.parent().width(), self.parent().height())
+        for w in QRisingLabel.list:
+            w.move(self.x(), self.y() - self.height())
+        QRisingLabel.list.append(self)
+        self.ticktimer.start(100)
     def tick(self):
+        if self in QRisingLabel.list:
+            QRisingLabel.list.remove(self)
+
         if self.y() - 1 < 0:
             # delete myself, hopefully...
             self.ticktimer.stop()
@@ -24,10 +42,9 @@ class QRisingLabel(QtGui.QLabel):
             return 
 
         pft = (self.parent().height() - self.y()) / self.parent().height()
-
         mv = 5 + pft * 40
 
-        self.move(self.parent().width() - self.width() - 5, self.y() - mv)
+        self.move((self.parent().width() - self.width() - 5) + self.posoff[0], (self.y() - mv) + self.posoff[1])
 
 class QStatBar(QtGui.QFrame):
     def __init__(self, parent, tprefix, stylename):
@@ -72,6 +89,8 @@ class QPlugCharacter(QSubWindow):
         game.registerforevent('stats', self.event_stats)
         game.registerforevent('riftentitystats', self.event_riftentitystats)
 
+        self.move(0, 0)
+
         self.resizeon(False)
 
         self.sbhp = QStatBar(self, 'HP', 'StatsHealth')
@@ -104,7 +123,8 @@ class QPlugCharacter(QSubWindow):
         if self.elast is not None:
             hpd = hp[0] - self.elast[0]
             if hpd != 0:
-                rl = QRisingLabel(self.parent(), '%s' % hpd, 'RisingLabelPointsEntityHealth')            
+                posoff = (-random.randint(0, 20), 0)
+                rl = QRisingLabel(self.parent(), '%s' % hpd, 'RisingLabelPointsEntityHealth', posoff) 
 
         self.elast = hp
 
@@ -129,12 +149,16 @@ class QPlugCharacter(QSubWindow):
             print(self.last)
 
             if hpd != 0:
-                rl = QRisingLabel(self.parent(), '%s' % hpd, 'RisingLabelPointsHealth')
+                posoff = (-random.randint(0, 20), 0)
+                rl = QRisingLabel(self.parent(), '%+d' % hpd, 'RisingLabelPointsHealth', posoff)
             if spd != 0:
-                rl = QRisingLabel(self.parent(), '%s' % spd, 'RisingLabelPointsSpirit')
+                posoff = (-random.randint(0, 20), 0)
+                rl = QRisingLabel(self.parent(), '%+d' % spd, 'RisingLabelPointsSpirit', posoff)
             if epd != 0:
-                rl = QRisingLabel(self.parent(), '%s' % epd, 'RisingLabelPointsEndurance')
+                posoff = (-random.randint(0, 20), 0)
+                rl = QRisingLabel(self.parent(), '%+d' % epd, 'RisingLabelPointsEndurance', posoff)
             if exd != 0:
-                rl = QRisingLabel(self.parent(), '%s' % exd, 'RisingLabelPointsExperience')
+                posoff = (-random.randint(0, 20), 0)
+                rl = QRisingLabel(self.parent(), '%+d' % exd, 'RisingLabelPointsExperience', posoff)
         self.last = (hp, sp, ep, ex)
 

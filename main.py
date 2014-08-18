@@ -51,7 +51,7 @@ class QMainWindow(QtGui.QWidget):
 
         self.ticktimer = QtCore.QTimer(self)
         self.ticktimer.timeout.connect(lambda : self.gametick())
-        self.ticktimer.start(50)
+        self.ticktimer.start(100)
 
         self.setWindowTitle('PyBatMud (Python Client For BatMud Using Qt) [kmcg3413@gmail.com]')
 

@@ -1,5 +1,9 @@
 import socket
 import time
+import collections
+import threading
+import time
+from io import BytesIO
 
 class ConnectionDead(Exception):
     pass
@@ -19,18 +23,92 @@ class Client:
         self.connected = False
         self.host = host
         self.port = port
-        self.connect()
 
         self.fdindump = open('dataindump', 'w')
         self.fdlndump = open('lineindump', 'w')
+        self.fdbldump = open('blockindump', 'w')
+
+        self.outque = collections.deque()
+        self.sock = None
+        self.xsock = [None]
+
+        self.readerthread = threading.Thread(target = Client.reader, args = (self,))
+        self.readerthread.setDaemon(True)
+        self.readerthread.start()
+        self.readerbuf = BytesIO()
+
+        self.connect()
+
+    def reader(self):
+        print('READER', self)
+        # will need to wrap for socket exception.. close socket if possible.. force reconnect
+        chunk = b''
+        while True:
+            # sleep until valid sock
+            if not self.connected:
+                time.sleep(1)
+                continue
+            print('CYCLE')
+            sock = self.xsock[0]
+            if len(chunk) < 2:
+                data = sock.recv(4096)
+                chunk = chunk + data
+            # line
+            if not (chunk[0] == 0x1b and chunk[1] == ord('<')):
+                chunks = [chunk]
+                while chunks[-1].find(b'\n') < 0:
+                    data = self.sock.recv(4096)
+                    chunks.append(data)
+                tail = chunks[-1][0:chunks[-1].find(b'\n')]
+                slack = chunks[-1][chunks[-1].find(b'\n') + 1:]
+                line = (b''.join(chunks[0:-1]) + tail).strip()
+                self.outque.append((False, line))
+                if len(slack) > 0:
+                    chunk = slack
+                else:
+                    chunk = b''
+                continue
+            # block
+            print('BLOCK')
+            count = 0
+            tagi = 0
+            closedout = False
+            while True:
+                print('MAJOR')
+                tag = chunk[0:4]
+                print('TAG', tag)
+                etag =  b'\x1b>' + tag[2:]
+                print('ETAG', etag)
+                if chunk.find(etag) > -1:
+                    tagi = chunk.find(etag)
+                    block = chunk[0:tagi + 4]
+                    print('BLOCK', block)
+                    slack = chunk[tagi + 4:]
+                    print('SLACK', slack)
+                    if len(slack) > 0:
+                        self.outque.append((True, block))
+                        chunk = slack
+                    else:
+                        chunk = b''
+                    break
+                data = sock.recv(4096)
+                chunk = chunk + data
+            continue
 
     def connect(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.connected = True
         self.sock.connect((self.host, self.port))
         self.sock.send(b'\x1bbc 1\n')
+        self.xsock[0] = self.sock
+        self.connected = True
+        print('CONNECTED', self, self.sock)
 
-    def readline(self, block = 0):
+    def readline(self):
+        if len(self.outque):
+            return self.outque.popleft()
+        return (None, None)
+
+    def __OLD__readline(self, block = 0):
         # try to stay connected
         if not self.connected:
             raise ConnectionDead()
@@ -103,6 +181,8 @@ class Client:
                 # it was a block sequence
                 line = inbuf[0:x + 3]
                 self.inbuf = inbuf[x + 3:]
+                self.fdbldump.write('%s\n' % line)
+                self.fdbldump.flush()
                 return (True, line)
 
         if f9mark < eols and f9mark < spbegin:

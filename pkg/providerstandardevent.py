@@ -134,6 +134,7 @@ class ProviderStandardEvent:
                 continue
             if part[0] == ord('>'):
                 rem = part[3:]
+                line.append(b'\x1b[m')
                 line.append(rem)
                 line = self._procline(line)
                 continue
@@ -151,7 +152,21 @@ class ProviderStandardEvent:
         if block.find(b'\x1b<10spec_prompt') == 0:
             self.handleprompt(b''.join(line))
             return
-        self.event_rawunknown(None, b''.join(line))
+        #\x1b<41summon_rift_entity 9\x1b>41....
+        if block.find(b'\x1b<41') == 0:
+            line = block[4:block.find(b'\x1b', 1)]
+            line = line.split(' ')
+            spellname = line[0]
+            spellticks = line[1]
+            self.game.pushevent('spelltick', spellname, spellticks)
+            return
+        #<10chan_newbie\x1b|\x1b[1;33mToffzen [newbie]: a boost\x1b[m\r\n\x1b>10
+        if block.find(b'\x1b<10chan_') == 0:
+            pass
+
+        line = b''.join(line)
+        if len(line) > 0:
+            self.event_rawunknown(None, line)
         return
 
     def event_rawunknown(self, event, line):
@@ -207,62 +222,28 @@ class ProviderStandardEvent:
             if len(part) < 1:
                 continue
             if part[0] == ord('|'):
-                if not isinner:
-                    line.append(part[1:])
-                else:
-                    inner.append(part[1:])
-                continue
+                line.append(part[1:])
             if part[0] == ord('<'):
-                print('START', part)
-                if part[1:] == b'10spec_prompt':
-                    isinner = True
-                    inner = []
-                    innertype = 'prompt'
-                elif part[1:] == b'10spec_battle':
-                    innertype = 'battle'
-                else:
-                    if len(part) > 3:
-                        # test if its a hex code
-                        try:
-                            hexcolor = part[3:]
-                            tmp = int(hexcolor, 16)
-                            line.append(b'\x1b#' + hexcolor + b';')
-                        except ValueError:
-                            pass
+                if len(part) > 3:
+                    # test if its a hex code
+                    try:
+                        hexcolor = part[3:]
+                        tmp = int(hexcolor, 16)
+                        line.append(b'\x1b#' + hexcolor + b';')
+                    except ValueError:
+                        pass
                 continue
             if part[0] == ord('>'):
-                if isinner:
-                    if innertype == 'prompt':
-                        self.handleprompt(b''.join(inner))
-                    if innertype == 'battle':
-                        self.game.pushevent('battleline', b''.join(inner))
-                    isinner = False
+                line.append(b'\x1b[0m')
                 part = part[3:]
                 line.append(part)
                 continue
-            if not isinner:
-                line.append(b'\x1b' + part)
+
+            line.append(b'\x1b' + part)
 
         line = b''.join(line)
 
         print('line', line)
-
-        # lets us try to figure out what it could be..
-        # remove crazy escape codes
-        parts = line.split(b'\xff')
-
-        line = []
-        line.append(parts[0])
-
-        # break out prompts
-        for x in range(1, len(parts)):
-            part = parts[x]
-            if part[0] == 0xf9:
-                line = b''.join(line)
-                self.handleprompt(line)
-                line = []
-            line.append(part[1:])
-        line = b''.join(line)
 
         self.game.pushevent('unknown', line)
 

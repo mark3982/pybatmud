@@ -187,6 +187,7 @@ class QChannelManager:
         css = self.parent.styleSheet()
         chgrpwidget = QSubWindow(self.parent, 'Channel Window')
         chgrpwidget.resize(600, 400)
+        chgrpwidget.move(100, 100)
         clientarea = chgrpwidget.getclientarea()
         qtabwidget = QtGui.QTabWidget(clientarea)
         qtabwidget.setObjectName('ChannelTab')
