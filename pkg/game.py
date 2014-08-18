@@ -55,7 +55,7 @@ class Game:
         while True:
             # read a single line
             try:
-                block, line = self.c.readline()
+                xtype, line = self.c.readitem()
             except ConnectionDead:
                 if self.connected:
                     self.connected = False
@@ -64,12 +64,15 @@ class Game:
                     self.activate()
             if line is None:
                 break
-            if not block:
-                # a line which may contain batmud client extension sequences
-                self.pushevent('rawunknown', line)
-            else:
-                # a block is a batmud client extension block of sequences
+            if xtype == 0:
+                self.pushevent('lineunknown', line)
+                continue
+            if xtype == 1:
+                self.pushevent('chunkunknown', line)
+                continue
+            if xtype == 2:
                 self.pushevent('blockunknown', line)
+                continue
 
     def pushevent(self, event, *args):
         """Push the event to any registered callbacks.
@@ -84,7 +87,4 @@ class Game:
             dt = time.time() - st
             #print('call %s seconds for %s' % (dt, cb[0]))
             if res is True:
-                # callback has specified to not forward
-                # the event any further and we shall drop
-                # it and not let it propagate
                 return

@@ -42,7 +42,7 @@ class QChannelManager:
 
         game.registerforevent('prompt', self.event_prompt, Priority.Normal)
         game.registerforevent('banner', self.event_banner, Priority.Normal)
-        game.registerforevent('unknown', self.event_unknown, Priority.Normal)
+        game.registerforevent('lineunknown', self.event_lineunknown, Priority.Normal)
         game.registerforevent('channelmessage', self.event_channelmessage, Priority.Normal)
         game.registerforevent('tell', self.event_tell, Priority.Normal)
 
@@ -68,7 +68,7 @@ class QChannelManager:
         """Routes the banner through the unknown event handler.
         """
         for item in banner:
-            self.event_unknown(event, item)
+            self.event_lineunknown(event, item)
     def event_tell(self, event, who, msg, line):
         """Route tell to appropriate channel.
 
@@ -94,7 +94,7 @@ class QChannelManager:
             # to create a channel in a window that can handle it
             pass
 
-    def event_unknown(self, event, line):
+    def event_lineunknown(self, event, line):
         """Route the message to the appropriate page in tab control.
 
         A unknown message is one that has not or can not be catagorized

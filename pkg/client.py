@@ -16,6 +16,14 @@ def findofcount(s, n, c):
         x = x + 1
     return p
 
+def findmulti(s, m, pos = 0):
+    lv = None
+    for _m in m:
+        v = s.find(_m, pos)
+        if v > -1 and (lv is None or v < lv):
+            lv = v
+    return lv
+
 class Client:
     def __init__(self, host, port):
         self.inbuf = b''
@@ -25,6 +33,7 @@ class Client:
         self.port = port
 
         self.fdindump = open('dataindump', 'w')
+        self.fdsldump = open('slackindump', 'w')
         self.fdlndump = open('lineindump', 'w')
         self.fdbldump = open('blockindump', 'w')
 
@@ -48,50 +57,80 @@ class Client:
             if not self.connected:
                 time.sleep(1)
                 continue
-            print('CYCLE')
             sock = self.xsock[0]
             if len(chunk) < 2:
+                print('   READ')
                 data = sock.recv(4096)
+                self.fdindump.write('%s\n' % data)
+                self.fdindump.flush()
                 chunk = chunk + data
+            # bullcrap "\xff\xfc\x01"
+            if chunk[0] == 0xff and chunk[1] == 0xfc:
+                chunk = chunk[3:]
+                continue
+            if chunk[0] == 0xff and chunk[1] == 0xf9:
+                chunk = chunk[2:]
+                continue
             # line
-            if not (chunk[0] == 0x1b and chunk[1] == ord('<')):
+            if not (chunk[0] == 0x1b and (chunk[1] == ord('<') or chunk[1] == ord('>'))):
                 chunks = [chunk]
-                while chunks[-1].find(b'\n') < 0:
+
+                while findmulti(chunks[-1], (b'\n', b'\x1b<', b'\x1b>')) is None:
                     data = self.sock.recv(4096)
+                    self.fdindump.write('%s\n' % data)
+                    self.fdindump.flush()
                     chunks.append(data)
-                tail = chunks[-1][0:chunks[-1].find(b'\n')]
-                slack = chunks[-1][chunks[-1].find(b'\n') + 1:]
-                line = (b''.join(chunks[0:-1]) + tail).strip()
-                self.outque.append((False, line))
+
+                pos = findmulti(chunks[-1], (b'\n', b'\x1b<', b'\x1b>'))
+
+                tail = chunks[-1][0:pos]
+                if chunks[-1][pos] == ord('\n'):
+                    slack = chunks[-1][pos + 1:]
+                else:
+                    slack = chunks[-1][pos:]
+                line = (b''.join(chunks[0:-1]) + tail).strip(b'\r')
+                self.fdbldump.write('l:%s\n' % line)
+                self.fdbldump.flush()
+                if chunks[-1][pos] == ord('\n'):
+                    self.outque.append((0, line))
+                else:
+                    self.outque.append((1, line))
                 if len(slack) > 0:
+                    self.fdsldump.write('WHOLE:%s\n' % chunks)
+                    self.fdsldump.write('SLACK:%s\n' % slack)
+                    self.fdsldump.write('LINE:%s\n' % line)
+                    self.fdsldump.flush()
                     chunk = slack
                 else:
                     chunk = b''
                 continue
             # block
-            print('BLOCK')
             count = 0
             tagi = 0
             closedout = False
+            # remove crazy ass closing tag... what the mother fuck is this shit...
+            if chunk[1] == ord('>'):
+                # for gods sake.. why.. is the server bugged?
+                chunk = chunk[4:]
+                continue
             while True:
-                print('MAJOR')
                 tag = chunk[0:4]
-                print('TAG', tag)
                 etag =  b'\x1b>' + tag[2:]
-                print('ETAG', etag)
                 if chunk.find(etag) > -1:
                     tagi = chunk.find(etag)
                     block = chunk[0:tagi + 4]
-                    print('BLOCK', block)
                     slack = chunk[tagi + 4:]
-                    print('SLACK', slack)
+                    self.fdbldump.write('b:%s\n' % block)
+                    self.fdbldump.flush()
                     if len(slack) > 0:
-                        self.outque.append((True, block))
+                        self.outque.append((2, block))
                         chunk = slack
                     else:
                         chunk = b''
                     break
                 data = sock.recv(4096)
+                self.fdindump.write('%s\n' % data)
+                self.fdindump.flush()
                 chunk = chunk + data
             continue
 
@@ -103,9 +142,14 @@ class Client:
         self.connected = True
         print('CONNECTED', self, self.sock)
 
-    def readline(self):
-        if len(self.outque):
+    def readitem(self):
+        if len(self.outque) > 0:
             return self.outque.popleft()
+        return (None, None)
+
+    def peekitem(self):
+        if len(self.outque) > 0:
+            return self.outque[0]
         return (None, None)
 
     def __OLD__readline(self, block = 0):

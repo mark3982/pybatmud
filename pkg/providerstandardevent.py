@@ -31,11 +31,17 @@ class ProviderStandardEvent:
     def __init__(self, game):
         self.game = game
         # we are mainly concerned with translating unknown events into higher level events
-        self.game.registerforevent('rawunknown', self.event_rawunknown, Priority.High)
+        self.game.registerforevent('lineunknown', self.event_lineunknown, Priority.High)
         self.game.registerforevent('blockunknown', self.event_blockunknown, Priority.High)
+        self.game.registerforevent('chunkunknown', self.event_chunkunknown, Priority.High)
+
+        self.game.registerforevent('blockrefined', self.event_blockrefined, Priority.High)
         self.readbanner = True
         self.droploginopts = False
         self.banner = []
+
+        # my weird way of handling weird crap
+        self.blockrefinedhold = b''
 
     def stripofescapecodes(self, line):
         # remove crazy escape codes
@@ -111,6 +117,7 @@ class ProviderStandardEvent:
         return line
 
     def event_blockunknown(self, event, block):
+        # look for the odd unwrapped sequence of blocks
         parts = block.split(b'\x1b')
         
         if len(parts[0]) > 0:
@@ -120,7 +127,6 @@ class ProviderStandardEvent:
 
         for x in range(1, len(parts)):
             part = parts[x]
-
             if part[0] == ord('<'):
                 if part[1:3] == b'20':
                     # color code
@@ -136,17 +142,14 @@ class ProviderStandardEvent:
                 rem = part[3:]
                 line.append(b'\x1b[m')
                 line.append(rem)
-                line = self._procline(line)
                 continue
             if part[0] == ord('['):
                 rem = b'\x1b' + part
                 line.append(rem)
-                line = self._procline(line)
                 continue
             if part[0] == ord('|'):
                 rem = part[1:]
                 line.append(rem)
-                line = self._procline(line)
                 continue
         # handle special block prompt
         if block.find(b'\x1b<10spec_prompt') == 0:
@@ -165,11 +168,23 @@ class ProviderStandardEvent:
             pass
 
         line = b''.join(line)
-        if len(line) > 0:
-            self.event_rawunknown(None, line)
+        self.game.pushevent('blockrefined', line)
         return
 
-    def event_rawunknown(self, event, line):
+    def event_chunkunknown(self, event, chunk):
+        self.blockrefinedhold = self.blockrefinedhold + chunk
+
+    def event_blockrefined(self, event, block):
+        # try to break this into lines if at all possible, and anything that can not be made into a line lets just
+        # hold on to it until we can make a line...
+        lines = block.split(b'\n')
+
+        for x in range(0, len(lines) - 1):
+            self.game.pushevent('lineunknown', lines[x].strip(b'\r'))
+
+        self.blockrefinedhold = self.blockrefinedhold + lines[-1]
+
+    def event_lineunknown(self, event, line):
         """Provides some standard higher level events.
 
         This is mainly going to take unknown events, which are the most basic
@@ -181,9 +196,16 @@ class ProviderStandardEvent:
         to interpret unknown events then it might be a good idea to put that code 
         here.
         """
-        print('rawevent', line)
+        # anything in hold under block refined should be prefixed onto this line
+        if len(self.blockrefinedhold) > 0:
+            line = self.blockrefinedhold + line
+            self.blockrefinedhold = b''
+            # cancel this event.. create new event but with entire line
+            self.game.pushevent('lineunknown', line)
+            return True
+
         # we are done with login options
-        if self.droploginopts and line.startswith(b'3 - '):
+        if self.droploginopts and line.strip().startswith(b'3 - '):
             self.droploginopts = False
             self.game.pushevent('login')
             return True
@@ -194,7 +216,7 @@ class ProviderStandardEvent:
 
         # disable reading of banner and read up options
         if self.readbanner: 
-            if line.startswith(b'1 - '):
+            if line.strip().startswith(b'1 - '):
                 self.game.pushevent('banner', self.banner)
                 self.readbanner = False
                 self.droploginopts = True
@@ -204,48 +226,6 @@ class ProviderStandardEvent:
         if self.readbanner:
             self.banner.append(line)
             return True
-
-        # break out special codes
-        parts = line.split(b'\x1b')
-        
-        skip = False
-
-        line = []
-        line.append(parts[0])
-
-        isinner = False
-        innertype = None
-        inner = []
-
-        for x in range(1, len(parts)):
-            part = parts[x]
-            if len(part) < 1:
-                continue
-            if part[0] == ord('|'):
-                line.append(part[1:])
-            if part[0] == ord('<'):
-                if len(part) > 3:
-                    # test if its a hex code
-                    try:
-                        hexcolor = part[3:]
-                        tmp = int(hexcolor, 16)
-                        line.append(b'\x1b#' + hexcolor + b';')
-                    except ValueError:
-                        pass
-                continue
-            if part[0] == ord('>'):
-                line.append(b'\x1b[0m')
-                part = part[3:]
-                line.append(part)
-                continue
-
-            line.append(b'\x1b' + part)
-
-        line = b''.join(line)
-
-        print('line', line)
-
-        self.game.pushevent('unknown', line)
 
         # get ourselves a pure string which is easier to work with
         _line = self.stripofescapecodes(line)

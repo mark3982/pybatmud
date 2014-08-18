@@ -197,21 +197,6 @@ class QConsoleWindow(QtGui.QWidget):
     def processline(self, line, fgdef = None, bgdef = None):
         """Add line but convert terminal codes into HTML and convert from bytes to string.
         """
-        # remove crazy escape codes
-        parts = line.split(b'\xff')
-        
-        line = []
-        line.append(parts[0])
-
-        for x in range(1, len(parts)):
-            part = parts[x]
-            if part[0] == 0xf9:
-                # just ignore prompt crap
-                line = []
-                continue
-            line.append(part[1:])
-
-        line = b''.join(line)
 
         # convert to string and replace any crazy characters
         line = line.decode('utf8', 'replace')
@@ -240,7 +225,7 @@ class QConsoleWindow(QtGui.QWidget):
                 hexcolor = tupletohexcolor(hexcolor)
 
                 rmsg = part[part.find(';') + 1:]
-                rmsg = rmsg.replace('\t', '&#9;')
+                rmsg = rmsg.replace('   ', '&nbsp;' * 3)
                 rmsg = rmsg.replace(' ', '&nbsp;')
                 line.append('<span style=\\"color: #%s;\\">%s</span>' % (hexcolor, rmsg))
                 #line.append(rmsg)
