@@ -184,12 +184,15 @@ class QConsoleWindow(QtGui.QWidget):
         self.wp.setHtml(' \
             <html><head><style>%s</style></head><body> \
             <script language="javascript"> \
-                function addline(line) { \
+                function scrollcheck() { \
                     var scrollit; \
-                    if (document.body.scrollTop > document.body.scrollHeight - document.body.clientHeight - 1 || document.body.scrollTop == 0) \
-                        scrollit = true; \
+                    if (document.body.scrollHeight - document.body.scrollTop <= (document.body.clientHeight + 10)) \
+                        return true; \
                     else \
-                        scrollit = false; \
+                        return false; \
+                } \
+                function addline(line) { \
+                    var scrollit = scrollcheck(); \
                     var m = document.createElement("div"); \
                     m.innerHTML = line; \
                     lines.appendChild(m); \
@@ -322,7 +325,7 @@ class QConsoleWindow(QtGui.QWidget):
     def setprompt(self, prompt, fgdef = None, bgdef = None):
         # set the prompt AND //commentedout//scroll the window buffer to end//
         prompt = self.processline(prompt, fgdef, bgdef)
-        self.wp.page().mainFrame().evaluateJavaScript('xprompt.innerHTML = "%s";' % prompt)
+        self.wp.page().mainFrame().evaluateJavaScript('var scrollit = scrollcheck(); xprompt.innerHTML = "%s"; if (scrollit) window.scrollTo(0, document.body.scrollHeight);' % prompt)
         if self.promptfirstset:
             self.scrolltoend()
             self.promptfirstset = False

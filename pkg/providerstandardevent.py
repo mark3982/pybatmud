@@ -34,11 +34,12 @@ class ProviderStandardEvent:
         self.game.registerforevent('lineunknown', self.event_lineunknown, Priority.High)
         self.game.registerforevent('blockunknown', self.event_blockunknown, Priority.High)
         self.game.registerforevent('chunkunknown', self.event_chunkunknown, Priority.High)
-
+        self.game.registerforevent('prompt', self.event_prompt, Priority.High)
         self.game.registerforevent('blockrefined', self.event_blockrefined, Priority.High)
         self.readbanner = True
         self.droploginopts = False
         self.banner = []
+        self.seenattention = False
 
         # my weird way of handling weird crap
         self.blockrefinedhold = b''
@@ -71,15 +72,16 @@ class ProviderStandardEvent:
 
         return ''.join(line)
 
-    def handleprompt(self, line):
+    def event_prompt(self, event, line):
         if len(line) < 1:
             return
-        # let us extract the prompt and produce an event
-        # with the information that it contains
-        self.game.pushevent('prompt', line)
 
         # i could optmize this a bit.. but its hardly called so
         # i opted for code size reduction and readability
+
+        if line.find(b'What is your name: ') == 0 and not self.seenattention:
+            self.game.pushevent('login')
+            return
 
         # let us check if it is a continue type prompt
         if line.find(b'More') > -1 and line.find(b'[qpbns?]') > -1:
@@ -157,9 +159,12 @@ class ProviderStandardEvent:
                 rem = part[1:]
                 line.append(rem)
                 continue
+
+        line = b''.join(line)
+
         # handle special block prompt
         if block.find(b'\x1b<10spec_prompt') == 0:
-            self.handleprompt(b''.join(line))
+            self.game.pushevent('prompt', line)
             return
         #\x1b<41summon_rift_entity 9\x1b>41....
         if block.find(b'\x1b<41') == 0:
@@ -171,9 +176,31 @@ class ProviderStandardEvent:
             return
         #<10chan_newbie\x1b|\x1b[1;33mToffzen [newbie]: a boost\x1b[m\r\n\x1b>10
         if block.find(b'\x1b<10chan_') == 0:
-            pass
+            _line = self.stripofescapecodes(line)
 
-        line = b''.join(line)
+            # figure out what type of symbols surround the channel name
+            head = _line[0:_line.find(':')]
+            syms = None
+            if head.find('[') > -1:
+                syms = '[]'
+            if head.find('{') > -1:
+                syms = '{}'
+            if head.find('<') > -1:
+                syms = '<>'
+            if head.find('(') > -1:
+                syms = '()'
+            if syms is None:
+                print('OOPS', line, _line)
+            else:
+                chwho = _line[0:_line.find(' ')]
+                chname = _line[_line.find(syms[0]) + 1:_line.find(syms[1])]
+                chmsg = _line[_line.find(':') + 1:].strip()
+                _line = line.replace(b'\n', b'')
+                _line = _line.replace(b'\r', b'')
+                self.game.pushevent('channelmessage', chname, chwho, chmsg, _line)
+            # im going to let it goto the lineunknown so it will be displayed
+            # in the all window.. --kmcg
+
         self.game.pushevent('blockrefined', line)
         return
 
@@ -210,23 +237,11 @@ class ProviderStandardEvent:
             self.game.pushevent('lineunknown', line)
             return True
 
-        # we are done with login options
-        if self.droploginopts and line.strip().startswith(b'3 - '):
-            self.droploginopts = False
-            self.game.pushevent('login')
-            return True
-
-        if self.droploginopts:
-            # just discard this crap
-            return True
-
         # disable reading of banner and read up options
         if self.readbanner: 
             if line.strip().startswith(b'1 - '):
                 self.game.pushevent('banner', self.banner)
                 self.readbanner = False
-                self.droploginopts = True
-                return True
 
         # let us grab the entire banner for safe keeping
         if self.readbanner:
@@ -236,60 +251,17 @@ class ProviderStandardEvent:
         # get ourselves a pure string which is easier to work with
         _line = self.stripofescapecodes(line)
 
+        # block login event from being produced after this
+        if _line == '======[ ATTENTION ]==================================================':
+            self.seenattention = True
+            return
+
         parts = _line.split(' ')
         if len(parts) > 3:
             if parts[1] == 'tells' and parts[2] == 'you' and parts[3].startswith("'"):
                 who = parts[0]
                 msg = ' '.join(parts[3:]).strip("'")
                 self.game.pushevent('tell', who, msg, line)
-
-        # channel messages
-        pc = _line.find('):') 
-        po = _line.find('(')
-        tc = _line.find('>:')
-        to = _line.find('<') 
-        cc = _line.find('}:')
-        co = _line.find('{') 
-        sc = _line.find(']:')
-        so = _line.find('[')
-
-        namechars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-_'
-
-        # decide which are valid
-        li = []
-        if po > -1 and pc > -1 and pc > po:
-            li.append((po, pc))
-        if to > -1 and tc > -1 and tc > to:
-            li.append((to, tc))
-        if co > -1 and cc > -1 and cc > co:
-            li.append((co, cc))
-        if so > -1 and sc > -1 and sc > so:
-            li.append((so, sc))
-
-        # find the lowest
-        _lhv = 999999
-        _lhi = None
-        for l in li:
-            if l[0] < _lhv:
-                _lhv = l[0]
-                _lhi = l
-
-        if _lhi is not None:
-            uo = _lhi[0]
-            uc = _lhi[1]
-
-            if uc == 0:
-                # {bat}: Woocca shakes the magic 8 ball, and it reveals: My Sources Say No.\x1b[m\r\n'
-                chname = _line[uo + 1:uc]
-                tmp = _line[uc + 1].strip().split(' ')
-                chwho = tmp[0]
-                chmsg = ' '.join(tmp[1:])
-            else:
-                # kmcg [bat]: hello world
-                chwho = _line[0:uo]
-                chmsg = _line[uc + 2:]
-                chname = _line[uo + 1:uc]
-            self.game.pushevent('channelmessage', chname, chwho, chmsg, line)
 
         # rift walker entity support for events
         if _line.startswith('--=') and _line.find('=--') == len(_line) - 3:

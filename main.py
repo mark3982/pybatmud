@@ -16,7 +16,6 @@ from pkg.game import Priority
 from pkg.qconsolewindow import QConsoleWindow
 from pkg.providerstandardevent import ProviderStandardEvent
 
-
 from plug.qpluglogin import QPlugLogin
 from plug.qplugunknown import QPlugUnknown
 from plug.qplugcharacter import QPlugCharacter
@@ -36,6 +35,10 @@ class QMainWindow(QtGui.QWidget):
         self.setStyleSheet(css)
 
         self.setObjectName('MainWindow')
+
+        path = os.path.expanduser('~') + '/pybatmud'
+        if not os.path.exists(path):
+            os.makedirs(path)
 
         self.resize(850, 700)
         self.show()
@@ -94,4 +97,10 @@ def main():
 
     sys.exit(app.exec_())
 
-main()
+'''
+    What happens is if we are started directly just run as normal, but
+    if the updater starts us then do nothing yet and let the updater
+    tell us when to run. --kmcg
+'''
+if __name__ == '__main__':
+    main()

@@ -26,7 +26,8 @@
 }
 
 #QPlugLogin {
-    background-color:   gray;
+    background-color:   #444444;
+    border-style:       inset;
 }
 
 #CommandLine {

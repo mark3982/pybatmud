@@ -3,6 +3,8 @@ import time
 import collections
 import threading
 import time
+import os.path
+
 from io import BytesIO
 
 class ConnectionDead(Exception):
@@ -32,10 +34,15 @@ class Client:
         self.host = host
         self.port = port
 
-        self.fdindump = open('dataindump', 'w')
-        self.fdsldump = open('slackindump', 'w')
-        self.fdlndump = open('lineindump', 'w')
-        self.fdbldump = open('blockindump', 'w')
+        base = os.path.expanduser('~') + '/pybatmud/'
+
+        # this is used for debugging.. i am leaving it enabled even for
+        # production code so that it is possible for users to send me 
+        # their data for inspection to find problems, i may make an
+        # auto-upload feature for this stuff
+        self.fdindump = open(base + 'dbgdump.data', 'w')
+        self.fdlndump = open(base + 'dbgdump.line', 'w')
+        self.fdbldump = open(base + 'dbgdump.block', 'w')
 
         self.outque = collections.deque()
         self.sock = None
@@ -66,38 +73,43 @@ class Client:
             if chunk[0] == 0xff and chunk[1] == 0xfc:
                 chunk = chunk[3:]
                 continue
-            if chunk[0] == 0xff and chunk[1] == 0xf9:
-                chunk = chunk[2:]
-                continue
+            #if chunk[0] == 0xff and chunk[1] == 0xf9:
+            #    chunk = chunk[2:]
+            #    continue
             # line
             if not (chunk[0] == 0x1b and (chunk[1] == ord('<') or chunk[1] == ord('>'))):
                 chunks = [chunk]
 
-                while findmulti(chunks[-1], (b'\n', b'\x1b<', b'\x1b>')) is None:
+                while findmulti(chunks[-1], (b'\n', b'\x1b<', b'\x1b>', b'\xff\xf9')) is None:
                     data = self.sock.recv(4096)
                     self.fdindump.write('%s\n' % data)
                     self.fdindump.flush()
                     chunks.append(data)
 
-                pos = findmulti(chunks[-1], (b'\n', b'\x1b<', b'\x1b>'))
+                pos = findmulti(chunks[-1], (b'\n', b'\x1b<', b'\x1b>', b'\xff\xf9'))
 
                 tail = chunks[-1][0:pos]
+
                 if chunks[-1][pos] == ord('\n'):
                     slack = chunks[-1][pos + 1:]
+                elif chunks[-1][pos] == 0xff:
+                    slack = chunks[-1][pos + 2:]
                 else:
                     slack = chunks[-1][pos:]
                 line = (b''.join(chunks[0:-1]) + tail).strip(b'\r')
-                self.fdbldump.write('l:%s\n' % line)
-                self.fdbldump.flush()
                 if chunks[-1][pos] == ord('\n'):
                     self.outque.append((0, line))
+                    self.fdbldump.write('l:%s\n' % line)
+                    self.fdbldump.flush()
+                elif chunks[-1][pos] == 0xff:
+                    self.outque.append((3, line))
+                    self.fdbldump.write('p:%s\n' % line)
+                    self.fdbldump.flush()                    
                 else:
                     self.outque.append((1, line))
+                    self.fdbldump.write('c:%s\n' % line)
+                    self.fdbldump.flush()
                 if len(slack) > 0:
-                    self.fdsldump.write('WHOLE:%s\n' % chunks)
-                    self.fdsldump.write('SLACK:%s\n' % slack)
-                    self.fdsldump.write('LINE:%s\n' % line)
-                    self.fdsldump.flush()
                     chunk = slack
                 else:
                     chunk = b''
@@ -112,12 +124,19 @@ class Client:
                 chunk = chunk[4:]
                 continue
             while True:
-                tag = chunk[0:4]
-                etag =  b'\x1b>' + tag[2:]
+                # is it a one byte code or multiple byte code
+                if chunk[3] < ord('0') or chunk[3] > ord('9'):
+                    tsz = 3
+                    isz = 2
+                else:
+                    tsz = 4
+                    isz = 2
+                tag = chunk[0:tsz]
+                etag =  b'\x1b>' + tag[isz:]
                 if chunk.find(etag) > -1:
                     tagi = chunk.find(etag)
-                    block = chunk[0:tagi + 4]
-                    slack = chunk[tagi + 4:]
+                    block = chunk[0:tagi + tsz]
+                    slack = chunk[tagi + tsz:]
                     self.fdbldump.write('b:%s\n' % block)
                     self.fdbldump.flush()
                     if len(slack) > 0:

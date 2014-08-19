@@ -73,6 +73,12 @@ class Game:
             if xtype == 2:
                 self.pushevent('blockunknown', line)
                 continue
+            if xtype == 3:
+                # catch this crap early.. if i find out i need it then
+                # maybe i will just make a completely new event if --kmcg
+                if len(line.strip()) > 0:
+                    self.pushevent('prompt', line)
+                continue
 
     def pushevent(self, event, *args):
         """Push the event to any registered callbacks.

@@ -13,14 +13,15 @@ class QRisingLabel(QtGui.QLabel):
     def __init__(self, parent, text, stylename, posoff):
         super().__init__(parent)
         self.ticktimer = QtCore.QTimer(self)
+        ticktimer = self.ticktimer
 
         def __tick():
             try:
                 self.tick()
             except:
-                self.ticktimer.stop()
+                ticktimer.stop()
 
-        self.ticktimer.timeout.connect(__tick)
+        self.ticktimer.timeout.connect(lambda: __tick)
         self.setObjectName(stylename)
         self.raise_()
         self.setText(text)

@@ -228,9 +228,11 @@ class QChannelManager:
         tabwidget = chgrpwidget.qtabwidget
         css = self.parent.styleSheet()
         qconsole = QConsoleWindow(None, css)
+        qconsole.hide()
         qconsole.setupdowncallback(self.updowncallback)
         qconsole.setcommandchangedcallback(self.commandchangedcallback)
         tabwidget.addTab(qconsole, ', '.join(channels))
+        qconsole.show()
 
         qconsole.chanlist = channels
         qconsole.commandEvent = self.commandEvent
