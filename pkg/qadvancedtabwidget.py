@@ -98,7 +98,6 @@ class QAdvancedTabWidget(QtGui.QFrame):
     def tabClickedEvent(self, tab):
         for g in self.tabs:
             if g[0] is tab:
-                print('showing', g[1])
                 if self.lastActiveWidget is not None:
                     self.lastActiveWidget.hide()
                 g[1].show()
@@ -110,6 +109,11 @@ class QAdvancedTabWidget(QtGui.QFrame):
 
     def widget(self, i):
         return self.tabs[i][1]
+
+    def tab(self, widget):
+        for g in self.tabs:
+            if g[1] is widget:
+                return g[0]
 
     def setMovable(self, value):
         pass
@@ -137,8 +141,11 @@ class QAdvancedTabWidget(QtGui.QFrame):
 
     def addTab(self, widget, text):
         widget.setParent(self.secwid)
-        widget.raise_()
+        # this hide call really does not seem to work
         widget.hide()
+        # make sure active stays on top
+        if self.lastActiveWidget is not None:
+            self.lastActiveWidget.raise_()
         tab = self.tabbar.addTab(text)
         self.tabs.append((tab, widget))
         widget.resize(self.secwid.width(), self.secwid.height())

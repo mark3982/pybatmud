@@ -18,6 +18,7 @@ from pkg.qsubwindow import QSubWindow
 from pkg.game import Priority
 from pkg.qconsolewindow import QConsoleWindow
 from pkg.qadvancedtabwidget import QAdvancedTabWidget
+from pkg.qadvancedtabwidget import TabState
 
 class QChannelManager:
     def __init__(self, parent, game):
@@ -129,7 +130,7 @@ class QChannelManager:
         # -kmcg
         if tabwidget.currentWidget() != console:
             print('ADDING FLAHSER')
-            self.tabflasheradd(console)
+            tabwidget.tab(console).setState(TabState.Alerted)
 
         console.processthenaddline(line)
 
