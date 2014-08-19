@@ -32,6 +32,7 @@ class QRisingLabel(QtGui.QLabel):
             w.move(self.x(), self.y() - self.height())
         QRisingLabel.list.append(self)
         self.ticktimer.start(100)
+        
     def tick(self):
         if self in QRisingLabel.list:
             QRisingLabel.list.remove(self)

@@ -49,8 +49,8 @@ class QConsoleWindow(QtGui.QWidget):
     messages produced soley by the system.
     """
     def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self.wp.resize(self.width() - 6, self.height() - (3 + 25))
+        #super().resizeEvent(event)
+        self.wp.resize(self.width() - 6, self.height() - 25 - 3)
         self.ce.move(2, self.height() - (25 + 3))
         self.ce.resize(self.width() - 5, 26)
 
@@ -260,13 +260,13 @@ class QConsoleWindow(QtGui.QWidget):
         for x in range(1, len(parts)):
             part = parts[x]
             if part[0] == '#':
-                hexcolor = part[1:part.find(';')]
+                hexcolor = part[1:part.find('m')]
                 hexcolor = hexcolortotuple(hexcolor)
                 hexcolor = hexcolordimblue(hexcolor, 0.4)
                 #hexcolor = hexcolordimer(hexcolor, 1.0, 1.0, 0.6)
                 hexcolor = tupletohexcolor(hexcolor)
-
-                rmsg = part[part.find(';') + 1:]
+                print('HEXCOLOR', hexcolor)
+                rmsg = part[part.find('m') + 1:]
                 rmsg = rmsg.replace('   ', '&nbsp;' * 3)
                 rmsg = rmsg.replace(' ', '&nbsp;')
                 line.append('<span style=\\"color: #%s;\\">%s</span>' % (hexcolor, rmsg))

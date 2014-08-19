@@ -17,6 +17,7 @@ from PyQt4 import QtGui
 from pkg.qsubwindow import QSubWindow
 from pkg.game import Priority
 from pkg.qconsolewindow import QConsoleWindow
+from pkg.qadvancedtabwidget import QAdvancedTabWidget
 
 class QChannelManager:
     def __init__(self, parent, game):
@@ -42,40 +43,6 @@ class QChannelManager:
         game.registerforevent('channelmessage', self.event_channelmessage, Priority.Normal)
         game.registerforevent('tell', self.event_tell, Priority.Normal)
 
-        self.tabflashertimer = QtCore.QTimer(self.parent)
-        self.tabflashertimer.timeout.connect(lambda : self.tabflasher())
-        self.tabflashertimer.start(1000)
-        self.tabflasherlist = []
-
-    def tabflasheradd(self, console):
-        if console not in self.tabflasherlist:
-            self.tabflasherlist.append(console)
-        console.sethadfocus(False)
-
-    def tabflasherdel(self, console):
-        self.tabflasherlist.remove(console)
-
-    def tabflasher(self):
-        # flash all on the list
-        toremove = []
-        for console in self.tabflasherlist:
-            dontflash = False
-            if console.hadfocus():
-                toremove.append(console)
-                dontflash = True
-
-            tabwidget = console.parent().parent()
-            tabindex = tabwidget.indexOf(console)
-            text = tabwidget.tabText(tabindex)
-            # flash tab by changing the text to get the user's attention
-            if text[0] == '[':
-                text = text[1:-1]
-            else:
-                if not dontflash:
-                    text = '[' + text + ']'
-            tabwidget.setTabText(tabindex, text)
-        for console in toremove:
-            self.tabflasherlist.remove(console)
     def event_channelmessage(self, event, chan, who, msg, line):
         added = False
         chan = ('#' + chan).lower()
@@ -227,7 +194,7 @@ class QChannelManager:
         """
         tabwidget = chgrpwidget.qtabwidget
         css = self.parent.styleSheet()
-        qconsole = QConsoleWindow(None, css)
+        qconsole = QConsoleWindow(tabwidget.getTabParent(), css)
         qconsole.hide()
         qconsole.setupdowncallback(self.updowncallback)
         qconsole.setcommandchangedcallback(self.commandchangedcallback)
@@ -250,10 +217,12 @@ class QChannelManager:
         chgrpwidget = QSubWindow(self.parent, 'Channel Window')
         chgrpwidget.resize(600, 400)
         chgrpwidget.move(100, 100)
+
         clientarea = chgrpwidget.getclientarea()
-        qtabwidget = QtGui.QTabWidget(clientarea)
-        qtabwidget.setObjectName('ChannelTab')
+        qtabwidget = QAdvancedTabWidget(clientarea)
+        clientarea.setObjectName('Test')
         qtabwidget.setMovable(True)
+        qtabwidget.show()
         # setup ability to right click on tab widget and get a menu
         qtabwidget.contextMenuEvent = lambda event: self.tab_contextmenu_event(qtabwidget)
 

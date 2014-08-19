@@ -47,28 +47,16 @@ class ProviderStandardEvent:
         self.blockrefinedhold = b''
 
     def stripofescapecodes(self, line):
-        # remove crazy escape codes
-        parts = line.split(b'\xff')
-        
-        line = []
-        line.append(parts[0])
-
-        for x in range(1, len(parts)):
-            part = parts[x]
-            if part[0] == 0xff and part[1] == 0xfc:
-                line.append(part[2:])
-                continue
-            line.append(part[1:])
-
-        line = b''.join(line)
-
         line = line.decode('utf8', 'replace')
 
         parts = line.split('\x1b')
 
         line = []
 
-        for part in parts:
+        line.append(parts[0])
+
+        for x in range(1, len(parts)):
+            part = parts[x]
             part = part[part.find('m') + 1:]
             line.append(part)
 
@@ -144,7 +132,7 @@ class ProviderStandardEvent:
                     try:
                         tmp = int(hexcolor, 16)
                         hexcolor = hexcolor.ljust(6, b'0')
-                        line.append(b'\x1b#' + hexcolor + b';')
+                        line.append(b'\x1b#' + hexcolor + b'm')
                     except ValueError:
                         pass
                 continue
@@ -176,7 +164,14 @@ class ProviderStandardEvent:
             spellticks = line[1].decode('utf8')
             self.game.pushevent('spelltick', spellname, spellticks)
             return
-        #<10chan_newbie\x1b|\x1b[1;33mToffzen [newbie]: a boost\x1b[m\r\n\x1b>10
+        #b:b'\x1b<10chan_sales\x1b|Broetchen {sales}: sold\r\n\x1b>10'
+        #b:b'\x1b<10chan_newbie\x1b|\x1b[1;33mToffzen [newbie]: a boost\x1b[m\r\n\x1b>10'
+        #b:b"\x1b<10chan_sky-\x1b|Faisel (sky-): 'use plant lore at carrot'\r\n\x1b>10'"
+        #b:b'\x1b<10chan_wanted\x1b|Choboeio [wanted]: acid/mana gaiters\r\n\x1b>10'
+        #b:b'\x1b<10chan_sales\x1b|Choboeio [sales]: w: acid/mana gaiters\r\n\x1b>10'
+
+        #b:b'\x1b<10chan_party\x1b|\x1b[1;35mKmcg [party]: test\x1b[m\r\n\x1b>10'
+        #b:b'\x1b<10chan_sky-\x1b|Shedevil [sky-]: why i got leads :D\r\n\x1b>10'
         if block.find(b'\x1b<10chan_') == 0:
             _line = self.stripofescapecodes(line)
 

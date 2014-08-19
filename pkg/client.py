@@ -159,8 +159,8 @@ class Client:
                     slack = chunk[tagi + tsz:]
                     self.fdbldump.write('b:%s\n' % block)
                     self.fdbldump.flush()
+                    self.outque.append((2, block))
                     if len(slack) > 0:
-                        self.outque.append((2, block))
                         chunk = slack
                     else:
                         chunk = b''

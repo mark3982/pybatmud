@@ -30,6 +30,29 @@
     border-style:       inset;
 }
 
+#TabActive {
+    background-color:   #dddddd;
+    color:              #777777;
+}
+
+#TabWidgetArea {
+}
+
+#TabLabel {
+    font-size:          12pt;
+    font-family:        consolas;
+}
+
+#TabInactive {
+    background-color:   #777777;
+    color:              #dddddd;
+}
+
+#TabAlerted {
+    background-color:   #cc7777;
+    color:              #dddddd;
+}
+
 #CommandLine {
     color:              white;
     background-color:   #101010; 
