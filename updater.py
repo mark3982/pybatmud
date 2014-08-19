@@ -32,7 +32,7 @@ def update(userbase):
             fd.close()
             lhash = m.digest()
         else:
-            lhash = None
+            lhash = b'\x00\x00\x00\x00'
         if lhash != rhash:
             # update local file
             print('bad.. %s...%s...%s' % (rel, rhash[0:10], lhash[0:10]))
