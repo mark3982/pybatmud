@@ -241,6 +241,8 @@ class QConsoleWindow(QtGui.QWidget):
         # convert to string and replace any crazy characters
         line = line.decode('utf8', 'ignore')
 
+        line = line.replace('\\', '\\\\')
+
         # escape any quotes because we encode this string into
         # javascript call and unescaped quotes will screw it up
         line = line.replace('"', '\\"')
