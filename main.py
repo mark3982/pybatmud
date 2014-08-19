@@ -51,6 +51,8 @@ class QMainWindow(QtGui.QWidget):
         self.character = QPlugCharacter(self, self.g)
         self.chanman = QChannelManager(self, self.g)
         self.login = QPlugLogin(self, self.g)
+        print('start')
+        self.g.start()
 
         self.ticktimer = QtCore.QTimer(self)
         self.ticktimer.timeout.connect(lambda : self.gametick())

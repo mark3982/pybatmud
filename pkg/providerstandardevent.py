@@ -36,11 +36,13 @@ class ProviderStandardEvent:
         self.game.registerforevent('chunkunknown', self.event_chunkunknown, Priority.High)
         self.game.registerforevent('prompt', self.event_prompt, Priority.High)
         self.game.registerforevent('blockrefined', self.event_blockrefined, Priority.High)
+        self.game.registerforevent('connected', self.event_connected, Priority.High)
+
+    def event_connected(self, event):
         self.readbanner = True
         self.droploginopts = False
         self.banner = []
         self.seenattention = False
-
         # my weird way of handling weird crap
         self.blockrefinedhold = b''
 

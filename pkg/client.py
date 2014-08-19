@@ -53,9 +53,25 @@ class Client:
         self.readerthread.start()
         self.readerbuf = BytesIO()
 
-        self.connect()
-
     def reader(self):
+        # just keep it going
+        while True:
+            try:
+                self.connect()
+                self.outque.append((5, None))
+            except Exception as e:
+                print(e)
+                time.sleep(3)
+                continue
+            try:
+                self.reader_inner()
+            except Exception as e:
+                print(e) 
+            # signal connection is dead
+            self.outque.append((4, None))
+
+
+    def reader_inner(self):
         # will need to wrap for socket exception.. close socket if possible.. force reconnect
         chunk = b''
         while True:
@@ -66,6 +82,8 @@ class Client:
             sock = self.xsock[0]
             if len(chunk) < 2:
                 data = sock.recv(4096)
+                if not data:
+                    return
                 self.fdindump.write('%s\n' % data)
                 self.fdindump.flush()
                 chunk = chunk + data
@@ -82,6 +100,8 @@ class Client:
 
                 while findmulti(chunks[-1], (b'\n', b'\x1b<', b'\x1b>', b'\xff\xf9')) is None:
                     data = self.sock.recv(4096)
+                    if not data:
+                        return
                     self.fdindump.write('%s\n' % data)
                     self.fdindump.flush()
                     chunks.append(data)
@@ -146,6 +166,8 @@ class Client:
                         chunk = b''
                     break
                 data = sock.recv(4096)
+                if not data:
+                    return
                 self.fdindump.write('%s\n' % data)
                 self.fdindump.flush()
                 chunk = chunk + data
@@ -264,7 +286,7 @@ class Client:
     def writeline(self, line):
         if type(line) == str:
             line = bytes(line, 'utf8')
-        if not self.connected:
-            raise ConnectionDead()
-        self.sock.send(line + b'\r\n')
-        print('client sent', line)
+        try:
+            self.sock.send(line + b'\r\n')
+        except Exception as e:
+            print(e)
