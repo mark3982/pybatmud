@@ -18,10 +18,11 @@ class QRisingLabel(QtGui.QLabel):
         def __tick():
             try:
                 self.tick()
-            except:
+            except Exception as e:
+                print(e)
                 ticktimer.stop()
 
-        self.ticktimer.timeout.connect(lambda: __tick)
+        self.ticktimer.timeout.connect(__tick)
         self.setObjectName(stylename)
         self.raise_()
         self.setText(text)
@@ -32,7 +33,7 @@ class QRisingLabel(QtGui.QLabel):
             w.move(self.x(), self.y() - self.height())
         QRisingLabel.list.append(self)
         self.ticktimer.start(100)
-        
+
     def tick(self):
         if self in QRisingLabel.list:
             QRisingLabel.list.remove(self)
