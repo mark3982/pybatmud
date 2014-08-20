@@ -35,22 +35,28 @@ class QPlugLogin(QSubWindow):
 
         self.btnlogin.clicked.connect(lambda: self.loginclicked())
 
-    def loginclicked(self):
         if os.path.exists('dbglogin'):
-            # development testing allows pulling from file
-            fd = open('dbglogin', 'rb')
+            print('loading user/pass from disk')
+            fd = open('dbglogin', 'r')
             data = fd.read()
             fd.close()
 
-            parts = data.split(b':')
+            parts = data.split(':')
             xuser = parts[0]
             xpass = parts[1]
-        else:
-            # normal production code path pulls from form
-            xuser = bytes(self.leuser.text(), 'utf8')
-            xpass = bytes(self.lepass.text(), 'utf8')
+            self.leuser.setText(xuser)
+            self.lepass.setText(xpass)
 
-        self.game.command(b'1')
+    def loginclicked(self):
+        # normal production code path pulls from form
+        xuser = bytes(self.leuser.text(), 'utf8')
+        xpass = bytes(self.lepass.text(), 'utf8')
+
+        if len(xuser) < 1 or len(xpass) < 1:
+            QtGui.QMessageBox.warning(self, 'Login', 'The user and password fields must be filled out.')
+            return
+
+
         self.game.command(xuser)
         self.game.command(xpass)
         self.hide()

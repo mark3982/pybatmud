@@ -44,7 +44,7 @@ class QAdvancedTabBar(QtGui.QFrame):
         tablab.setText(text)
         tab.show()
         tablab.show()
-        tablab.move(3, 3)
+        tablab.move(0, 0)
 
         tab.mousePressEvent = lambda event: self.tabMousePressEvent(_tab)
 

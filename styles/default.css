@@ -38,6 +38,22 @@
 #TabWidgetArea {
 }
 
+#MobHealthBar {
+    background-color:   #ff2222;
+}
+
+#MobHealthBarText {
+    font-size:          14pt;
+    color:              #ffffff;
+    font-family:        consolas;
+}
+
+#SpellDesc {
+    font-size:          14pt;
+    color:              #ffffff;
+    font-family:        consolas;
+}
+
 #SpellBar {
     background-color:   #bbbbff;
 }

@@ -6,6 +6,7 @@ import time
 import os.path
 
 from io import BytesIO
+from pkg.dprint import dprint
 
 class ConnectionDead(Exception):
     pass
@@ -179,7 +180,7 @@ class Client:
         self.sock.send(b'\x1bbc 1\n')
         self.xsock[0] = self.sock
         self.connected = True
-        print('CONNECTED', self, self.sock)
+        dprint('CONNECTED', self, self.sock)
 
     def readitem(self):
         if len(self.outque) > 0:
@@ -236,8 +237,6 @@ class Client:
             oc = inbuf.count(b'\x1b<')
             cc = inbuf.count(b'\x1b>')
             if cc < oc:
-                print('cc:%s oc:%s' % (cc, oc))
-                print('delta-time:%s' % (time.time() - st))
                 return (None, None)
             while x + 1 < len(inbuf) and count > 0:
                 if inbuf[x] == 0x1b and inbuf[x + 1] == ord('<'):
@@ -249,7 +248,6 @@ class Client:
                 print('count:%s' % count)
                 # we could not find an end to the sequence of encapculation
                 return (None, None)
-            print('sequence done')
             # we have found an end to the sequence of encapsulation
             if spbegin > 0:
                 # it was an inline sequence

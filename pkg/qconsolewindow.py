@@ -3,6 +3,7 @@ from PyQt4 import QtCore
 from PyQt4 import QtWebKit
 
 from pkg.qsubwindow import QSubWindow
+from pkg.dprint import dprint
 
 '''
     These are used to manipulate hex colors. I mainly had to implement these
@@ -242,7 +243,6 @@ class QConsoleWindow(QtGui.QWidget):
     def processline(self, line, fgdef = None, bgdef = None):
         """Add line but convert terminal codes into HTML and convert from bytes to string.
         """
-
         # convert to string and replace any crazy characters
         line = line.decode('utf8', 'ignore')
 
@@ -257,6 +257,9 @@ class QConsoleWindow(QtGui.QWidget):
 
         line = line.replace('-', '<nobr>-</nobr>')
 
+        line = line.replace('\t', '&#9;')
+        line = line.replace(' ', '&nbsp;')
+
         # split it to handle terminal escape codes
         parts = line.split('\x1b')
 
@@ -265,7 +268,7 @@ class QConsoleWindow(QtGui.QWidget):
         fgdef = fgdef or self.fgcolor
         bgdef = bgdef or self.bgcolor
 
-        line.append('<span class=\\"%s %s\\">%s</span>' % (fgdef, bgdef, parts[0].replace(' ', '&nbsp')))
+        line.append('<span class=\\"%s %s\\">%s</span>' % (fgdef, bgdef, parts[0]))
 
         for x in range(1, len(parts)):
             part = parts[x]
@@ -317,8 +320,6 @@ class QConsoleWindow(QtGui.QWidget):
                     continue
                 raise Exception('Ignored Code "%s"' % code)
 
-            rmsg = rmsg.replace('\t', '&#9;')
-            rmsg = rmsg.replace(' ', '&nbsp;')
             line.append('<span class=\\"%s %s\\">%s</span>' % (self.fgcolor, self.bgcolor, rmsg))
 
         line = ''.join(line)

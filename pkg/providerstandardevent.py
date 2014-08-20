@@ -7,6 +7,7 @@
 import time
 
 from pkg.game import Priority
+from pkg.dprint import dprint
 
 def onlychars(chars, line):
     for c in line:
@@ -30,6 +31,8 @@ class ProviderStandardEvent:
     """
     def __init__(self, game):
         self.game = game
+        self.privmsg_nextline_tome = False
+        self.privmsg_nextline_fome = False
         # we are mainly concerned with translating unknown events into higher level events
         self.game.registerforevent('lineunknown', self.event_lineunknown, Priority.High)
         self.game.registerforevent('blockunknown', self.event_blockunknown, Priority.High)
@@ -52,7 +55,6 @@ class ProviderStandardEvent:
 
         # i could optmize this a bit.. but its hardly called so
         # i opted for code size reduction and readability
-
         if line.find(b'What is your name:') == 0:
             if not self.seenattention:
                 self.game.pushevent('login')
@@ -65,11 +67,11 @@ class ProviderStandardEvent:
 
         # let us see if it is a prompt that contains health information
         if line.find(b'Hp') > -1 and line.find(b'Sp') > -1 and line.find(b'Ep') > -1 and line.find(b'Exp') > -1:
-            line = self.game.stripofescapecodes(line)
+            _line = self.game.stripofescapecodes(line)
             # drop any crap at the beginning (sometimes 0x01 gets there.. yea i know..)
-            line = line[line.find('Hp'):]
+            _line = _line[_line.find('Hp'):]
             # let us also try to parse the prompt
-            parts = line.strip().split(' ')
+            parts = _line.strip().split(' ')
             hp = parts[0]       # health 
             sp = parts[1]       # skill
             ep = parts[2]       # endurance
@@ -137,10 +139,51 @@ class ProviderStandardEvent:
 
         line = b''.join(line)
 
+        '''
+            At this point we have converted the block into a refined block which
+            means we have extracted the visual text from the block and converted
+            any formatting codes into terminal escape codes. The refined block 
+            may contain multiple lines or a partial line. The refined block does
+            NOT contain any telnet extension codes or data which is important for
+            the next stages of the pipeline.
+
+            In some cases we grab the block and refined block and use them creating
+            a new event, but we return and do not pass it onward to the refined block
+            event because it would either produce no visual text or the text it would
+            produce should not be displayed.
+
+            The refined block is known as `line` which is confusing, but it really
+            should be `rblock`.
+
+            The refined block will if not dropped continue onward to the refined block
+            which will break it into lines to be processed by the `unknownline` event.
+
+            There are cases where part of a refined block is left over. This will simply
+            be prepended to the next line or refined block that comes through the pipeline.
+        '''
+
+        #b:b'\x1b<10spec_battle\x1b|Shaking pigeon scratches Fire entity making small marks.\r\n\x1b>10'
+        if block.find(b'\x1b<10spec_battle') == 0:
+            _line = line.replace(b'\r', b'')
+            _line = _line.replace(b'\n', b'')
+            self.game.pushevent('battlemessage', _line)
+
+        #b:b'\x1b<70Shaking_pigeon 100\x1b>70'
+        if block.find(b'\x1b<70') == 0:
+            body = block[block.find(b'0') + 1:block.rfind(b'\x1b')]
+            body = body.decode('utf8', 'ingnore').split(' ')
+            mname = body[0]
+            mhealth = int(body[1])
+            self.game.pushevent('mobhealth', mname, mhealth)
+            # its not going to get displayed anyway so no need to
+            # try pushing it onward to refine block
+            return
+
         # handle special block prompt
         if block.find(b'\x1b<10spec_prompt') == 0:
             self.game.pushevent('prompt', line)
             return
+
         #b:b'\x1b<41summon_rift_entity 9\x1b>41'
         #b:b'\x1b<41heal_self 1\x1b>41'
         if block.find(b'\x1b<41') == 0:
@@ -150,12 +193,23 @@ class ProviderStandardEvent:
             spellticks = line[1].decode('utf8')
             self.game.pushevent('spelltick', spellname, int(spellticks))
             return
+
+        #b:b'\x1b<52Kmcg 0 brownie 21 1 24762\x1b>52'
+        if block.find(b'\x1b<52') == 0:
+            body = block[block.find(b'2') + 1:block.rfind(b'\x1b')]
+            parts = body.decode('utf8', 'ignore').split(' ')
+            name = parts[0]
+            unknown = parts[1]
+            xclass = parts[2]
+            level = int(parts[3])
+            self.game.pushevent('playerstatus', '$me', xclass, level)
+            return
+
         #b:b'\x1b<10chan_sales\x1b|Broetchen {sales}: sold\r\n\x1b>10'
         #b:b'\x1b<10chan_newbie\x1b|\x1b[1;33mToffzen [newbie]: a boost\x1b[m\r\n\x1b>10'
         #b:b"\x1b<10chan_sky-\x1b|Faisel (sky-): 'use plant lore at carrot'\r\n\x1b>10'"
         #b:b'\x1b<10chan_wanted\x1b|Choboeio [wanted]: acid/mana gaiters\r\n\x1b>10'
         #b:b'\x1b<10chan_sales\x1b|Choboeio [sales]: w: acid/mana gaiters\r\n\x1b>10'
-
         #b:b'\x1b<10chan_party\x1b|\x1b[1;35mKmcg [party]: test\x1b[m\r\n\x1b>10'
         #b:b'\x1b<10chan_sky-\x1b|Shedevil [sky-]: why i got leads :D\r\n\x1b>10'
         if block.find(b'\x1b<10chan_') == 0:
@@ -183,6 +237,9 @@ class ProviderStandardEvent:
                 self.game.pushevent('channelmessage', chname, chwho, chmsg, _line)
             # im going to let it goto the lineunknown so it will be displayed
             # in the all window.. --kmcg
+
+        #b:b'\x1b<62Kmcg brownie 1 21 198 198 620 620 204 204 fire_builders 1 1 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 524 Wed_Aug_20_19:46:15_2014\x1b>62'
+        #b:b'\x1b<62Wick barsoomian 1 92 902 902 31 31 398 398 fire_builders 2 1 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 524 Wed_Aug_20_19:46:15_2014\x1b>62'
 
         self.game.pushevent('blockrefined', line)
         return
@@ -220,6 +277,27 @@ class ProviderStandardEvent:
             self.game.pushevent('lineunknown', line)
             return True
 
+        # tell messages continuation (doing it the old school way)
+        if self.privmsg_nextline_tome is not False:
+            # if we have still not found it then.. keep looking
+            if _line[-1] != "'":
+                self.privmsg_nextline_tome.append(line)
+                return
+            line = b''.join(line)
+            self.privmsg_nextline_tome = False
+            self.game.pushevent('tell', who, '$me', msg, line)
+            return
+        if self.privmsg_nextline_fome is not False:
+            if _line[-1] != "'":
+                # keep reading lines until we find the terminating one
+                self.privmsg_nextline_fome.append(line)
+                return
+            who = self.privmsg_nextline_fome[0]
+            line = b''.join(self.privmsg_nextline_fome[1:])
+            self.privmsg_nextline_fome = False
+            self.game.pushevent('tell', who, '$me', line)
+            return
+
         # disable reading of banner and read up options
         if self.readbanner: 
             if line.strip().startswith(b'1 - '):
@@ -244,14 +322,22 @@ class ProviderStandardEvent:
             if parts[1] == 'tells' and parts[2] == 'you' and parts[3].startswith("'"):
                 who = parts[0]
                 msg = ' '.join(parts[3:]).strip("'")
-                self.game.pushevent('tell', who, '$me', msg, line)
+                if _line[-1] != "'":
+                    self.privmsg_nextline_tome = [who, line]
+                else:
+                    self.game.pushevent('tell', who, '$me', line)
                 return
+
             #l:b"\x1b[1;37mYou tell Wick 'how many you done so far?'\x1b[0m"
-            if _line.find('You tell') == 0:
-                who = _line[_line.find('l ') + 2:_line.find('\'')].strip()
+            if parts[0] == 'You' and parts[1] == 'tell':
+                who = parts[3]
                 msg = _line[_line.find('\'') + 1:].strip('\'')
-                self.game.pushevent('tell', '$me', who, msg, line)
+                if _line[-1] != "'":
+                    self.privmsg_nextline_fome = [who, line]
+                else:
+                    self.game.pushevent('tell', '$me', who, line)
                 return
+            # it was not part of a tell message
 
         # rift walker entity support for events
         if _line.startswith('--=') and _line.find('=--') == len(_line) - 3:

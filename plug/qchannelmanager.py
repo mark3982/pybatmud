@@ -19,6 +19,7 @@ from pkg.game import Priority
 from pkg.qconsolewindow import QConsoleWindow
 from pkg.qadvancedtabwidget import QAdvancedTabWidget
 from pkg.qadvancedtabwidget import TabState
+from pkg.dprint import dprint
 
 class QChannelManager:
     def __init__(self, parent, game):
@@ -34,9 +35,8 @@ class QChannelManager:
 
         # default channels created (maybe need to try to load from disk here!)
         self.mainchgrpwidget = self.createchannelgroup({
-            'All':      ('$all',),        # first tab channels named All
+            'All':      ('$all',),        # first tab channel named All
             'Battle':   ('$battle',),
-            'Spells':   ('$spells',),
         })
 
         game.registerforevent('prompt', self.event_prompt, Priority.Normal)
@@ -44,6 +44,16 @@ class QChannelManager:
         game.registerforevent('lineunknown', self.event_lineunknown, Priority.Normal)
         game.registerforevent('channelmessage', self.event_channelmessage, Priority.Normal)
         game.registerforevent('tell', self.event_tell, Priority.Normal)
+        game.registerforevent('battlemessage', self.event_battlemessage, Priority.Normal)
+
+    def event_battlemessage(self, event, line):
+        for chgrp in self.chgrpwidgets:
+            tabctrl = chgrp[1]
+            for i in range(0, tabctrl.count()):
+                console = tabctrl.widget(i)
+                chanlist = console.chanlist
+                if '$battle' in chanlist:
+                    self.addlinetoconsole(console, line)
 
     def event_channelmessage(self, event, chan, who, msg, line):
         added = False
@@ -212,6 +222,14 @@ class QChannelManager:
         if len(channels) < 2:
             # check if channel only
             if channels[0][0] == '#':
+                builtin = (
+                    'bat', 'bs', 'd3', 'ghost', 'ifin', 'lfp',
+                    'newbie', 'race', 'suomi', 'battlebot',
+                    'chat', 'eso', 'hockey', 'imud', 'magical',
+                    'sports', 'tunes', 'boardgaming', 'client',
+                    'football', 'houses', 'infalert', 'mudcon',
+                    'politics', 'sales', 'stream', 'wanted'
+                )
                 # add prefix for talking to that channel
                 qconsole.setcommandprefix('%s say ' % (channels[0][1:]))
             if channels[0][0] == '!':

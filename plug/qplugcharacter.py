@@ -9,20 +9,10 @@ from pkg.qsubwindow import QSubWindow
 
 class QRisingLabel(QtGui.QLabel):
     list = []
+    all = []
 
     def __init__(self, parent, text, stylename, posoff):
         super().__init__(parent)
-        self.ticktimer = QtCore.QTimer(self.parent())
-        ticktimer = self.ticktimer
-
-        def __tick():
-            try:
-                self.tick()
-            except Exception as e:
-                print(e)
-                ticktimer.stop()
-
-        self.ticktimer.timeout.connect(__tick)
         self.setObjectName(stylename)
         self.raise_()
         self.setText(text)
@@ -32,16 +22,21 @@ class QRisingLabel(QtGui.QLabel):
         for w in QRisingLabel.list:
             w.move(self.x(), self.y() - self.height())
         QRisingLabel.list.append(self)
-        self.ticktimer.start(100)
+        QRisingLabel.all.append(self)
 
-    def tick(self):
+    def tick():
+        for w in QRisingLabel.all:
+            w._tick()
+
+    def _tick(self):
         if self in QRisingLabel.list:
             QRisingLabel.list.remove(self)
 
         if self.y() - 1 < 0:
-            # delete myself, hopefully...
-            self.ticktimer.stop()
+            # delete myself, hopefully...s
+            self.hide()
             self.setParent(None)
+            self.all.remove(self)
             return 
 
         pft = (self.parent().height() - self.y()) / self.parent().height()
@@ -63,7 +58,9 @@ class QStatBar(QtGui.QFrame):
         self.tprefix = tprefix
         self.text.resize(self.width(), self.height())
         self.update()
-        self.text.move(self.width() * 0.5, 0)
+        self.text.move(0, 0)
+        self.text.setAlignment(QtCore.Qt.AlignCenter)
+        self.update()
 
     def settextprefix(self, text):
         self.tprefix = text
@@ -83,14 +80,22 @@ class QStatBar(QtGui.QFrame):
         self.wleft.resize(lw, self.height())
         self.wright.move(lw, 0)
         self.wright.resize(rw, self.height())
-        self.text.setText('%s %s/%s' % (self.tprefix, self.xvalue, self.xmax))        
+        self.text.setText('%s %s/%s' % (self.tprefix, self.xvalue, self.xmax))
+        self.text.resize(self.width(), self.height())
 
 
 class QPlugCharacter(QSubWindow):
     def __init__(self, pwin, game):
         super().__init__(pwin)
+        self.myclass = None
+
         game.registerforevent('stats', self.event_stats)
         game.registerforevent('riftentitystats', self.event_riftentitystats)
+        game.registerforevent('playerstatus', self.event_playerstatus)
+
+        self.ticktimer = QtCore.QTimer(self)
+        self.ticktimer.timeout.connect(self.tick)
+        self.ticktimer.start(100)
 
         self.move(0, 0)
 
@@ -100,24 +105,45 @@ class QPlugCharacter(QSubWindow):
         self.sbsp = QStatBar(self, 'SP', 'StatsSpirit')
         self.sbep = QStatBar(self, 'EP', 'StatsEndurance')
         self.sbeh = QStatBar(self, 'EHP', 'StatsEntityHealth')
+        self.classimage = QtGui.QLabel(self)
 
-        h = 33
+        h = 15
+        wo = 60
 
         self.resize(400, h * 4)
 
-        self.sbhp.move(0, h * 0)
-        self.sbhp.resize(self.width(), h)
-        self.sbsp.move(0, h * 1)
-        self.sbsp.resize(self.width(), h)
-        self.sbep.move(0, h * 2)
-        self.sbep.resize(self.width(), h)
-        self.sbeh.move(0, h * 3)
-        self.sbeh.resize(self.width(), h)
+        self.sbhp.move(wo, h * 0)
+        self.sbhp.resize(self.width() - wo, h)
+        self.sbsp.move(wo, h * 1)
+        self.sbsp.resize(self.width() - wo, h)
+        self.sbep.move(wo, h * 2)
+        self.sbep.resize(self.width() - wo, h)
+        self.sbeh.move(wo, h * 3)
+        self.sbeh.resize(self.width() - wo, h)
+
+        for w in (self.sbhp, self.sbsp, self.sbep, self.sbeh):
+            w.setmax(1)
+            w.setval(0)
+
+        self.classimage.resize(wo, self.height())
 
         self.last = None
         self.elast = None
 
         self.show()
+
+    def event_playerstatus(self, event, who, xclass, level):
+        if who != '$me':
+            return
+
+        if self.myclass != xclass:
+            print('SETTING PIC')
+            self.myclass = xclass
+            # update our character portrait
+            self.classimage.setPixmap(QtGui.QPixmap('./media/classpics/%s_%s.png' % (xclass, 'male')))
+
+    def tick(self):
+        QRisingLabel.tick()
 
     def event_riftentitystats(self, event, ename, hp):
         self.sbeh.setmax(hp[1])
@@ -138,6 +164,10 @@ class QPlugCharacter(QSubWindow):
         self.sbsp.setval(sp[0])
         self.sbep.setmax(ep[1])
         self.sbep.setval(ep[0])
+
+        if self.last is None:
+            self.sbeh.setmax(1)
+            self.sbeh.setval(0)
 
         if self.last is not None:
             # see what changed and display on screen in an interesting way

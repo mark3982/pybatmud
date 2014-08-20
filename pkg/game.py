@@ -3,6 +3,7 @@ import pprint
 
 from pkg.client import Client
 from pkg.client import ConnectionDead
+from pkg.dprint import dprint
 
 class Priority:
     Monitor         =       100
@@ -53,6 +54,7 @@ class Game:
         cbs.insert(x, (cb, priority))
 
     def command(self, command):
+        dprint('command', command)
         self.c.writeline(command)
 
     def tick(self, block = 10):
