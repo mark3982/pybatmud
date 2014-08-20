@@ -35,7 +35,6 @@ class QChannelManager:
         # default channels created (maybe need to try to load from disk here!)
         self.mainchgrpwidget = self.createchannelgroup({
             'All':      ('$all',),        # first tab channels named All
-            'Tells':    ('$tells',),
             'Battle':   ('$battle',),
             'Spells':   ('$spells',),
         })
@@ -76,7 +75,7 @@ class QChannelManager:
         """
         for item in banner:
             self.event_lineunknown(event, item)
-    def event_tell(self, event, who, msg, line):
+    def event_tell(self, event, fromwho, towho, msg, line):
         """Route tell to appropriate channel.
 
         We route the tell to the appropriate channel by first looking
@@ -85,16 +84,20 @@ class QChannelManager:
         that accepts it without using the $tell input then we create
         a new channel with that input only.
         """
-        who = '!' + who
+
+        # swap if from ourselves
+        if fromwho == '$me':
+            fromwho = towho
+        fromwho = '!' + fromwho
         delivered = False
         for chgrp in self.chgrpwidgets:
             tabctrl = chgrp[1]
             for i in range(0, tabctrl.count()):
                 console = tabctrl.widget(i)
-                if who in console.chanlist:
+                if fromwho in console.chanlist:
                     self.addlinetoconsole(console, line)
                     delivered = True
-                if '$tells' in page.chanlist:
+                if '$tells' in console.chanlist:
                     # special channel mostly from pre-development work, but
                     # i am keeping around just because im not ready to remove
                     # it yet
@@ -102,7 +105,7 @@ class QChannelManager:
         if delivered is False:
             # ok we did not find a window to handle this.. so we need
             # to create a channel in a window that can handle it
-            console = self.createchannel(self.mainchgrpwidget, (who,), who)
+            console = self.createchannel(self.mainchgrpwidget, (fromwho,), fromwho)
             self.addlinetoconsole(console, line)
 
     def event_lineunknown(self, event, line):
@@ -211,6 +214,9 @@ class QChannelManager:
             if channels[0][0] == '#':
                 # add prefix for talking to that channel
                 qconsole.setcommandprefix('%s say ' % (channels[0][1:]))
+            if channels[0][0] == '!':
+                # add prefix for talking over tells to player
+                qconsole.setcommandprefix('tell %s ' % (channels[0][1:]))
 
         qconsole.commandEvent = self.commandEvent
         qconsole.show()

@@ -38,9 +38,17 @@
 #TabWidgetArea {
 }
 
+#SpellBar {
+    background-color:   #bbbbff;
+}
+
+#SpellBarText {
+    font-size:          12pt;
+    color:              #ffffff;
+}
+
 #TabLabel {
     font-size:          12pt;
-    font-family:        consolas;
 }
 
 #TabInactive {
@@ -56,19 +64,17 @@
 #CommandLine {
     color:              white;
     background-color:   #101010; 
-    font-family:        consolas; 
+    font-family:        consolas;
     font-size:          10pt;
     border-color:       #888888;
 }
 
 #ChannelTab {
     font-size:          12pt;
-    font-family:        consolas;
 }
 
 #SubWindowTitle {
     font-size:          12pt; 
-    font-family:        consolas;
     color:              #aaaaaa;
     background-color:   #555555;
 }

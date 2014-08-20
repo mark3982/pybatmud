@@ -20,6 +20,7 @@ from plug.qpluglogin import QPlugLogin
 from plug.qplugunknown import QPlugUnknown
 from plug.qplugcharacter import QPlugCharacter
 from plug.qchannelmanager import QChannelManager
+from plug.qplugspellman import QPlugSpellMan
 
 class QMainWindow(QtGui.QWidget):
     def __init__(self):
@@ -51,7 +52,7 @@ class QMainWindow(QtGui.QWidget):
         self.character = QPlugCharacter(self, self.g)
         self.chanman = QChannelManager(self, self.g)
         self.login = QPlugLogin(self, self.g)
-        print('start')
+        self.spellman = QPlugSpellMan(self, self.g)
         self.g.start()
 
         self.ticktimer = QtCore.QTimer(self)

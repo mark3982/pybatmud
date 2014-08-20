@@ -46,22 +46,6 @@ class ProviderStandardEvent:
         # my weird way of handling weird crap
         self.blockrefinedhold = b''
 
-    def stripofescapecodes(self, line):
-        line = line.decode('utf8', 'replace')
-
-        parts = line.split('\x1b')
-
-        line = []
-
-        line.append(parts[0])
-
-        for x in range(1, len(parts)):
-            part = parts[x]
-            part = part[part.find('m') + 1:]
-            line.append(part)
-
-        return ''.join(line)
-
     def event_prompt(self, event, line):
         if len(line) < 1:
             return
@@ -69,8 +53,9 @@ class ProviderStandardEvent:
         # i could optmize this a bit.. but its hardly called so
         # i opted for code size reduction and readability
 
-        if line.find(b'What is your name: ') == 0 and not self.seenattention:
-            self.game.pushevent('login')
+        if line.find(b'What is your name:') == 0:
+            if not self.seenattention:
+                self.game.pushevent('login')
             return
 
         # let us check if it is a continue type prompt
@@ -80,7 +65,7 @@ class ProviderStandardEvent:
 
         # let us see if it is a prompt that contains health information
         if line.find(b'Hp') > -1 and line.find(b'Sp') > -1 and line.find(b'Ep') > -1 and line.find(b'Exp') > -1:
-            line = self.stripofescapecodes(line)
+            line = self.game.stripofescapecodes(line)
             # drop any crap at the beginning (sometimes 0x01 gets there.. yea i know..)
             line = line[line.find('Hp'):]
             # let us also try to parse the prompt
@@ -156,13 +141,14 @@ class ProviderStandardEvent:
         if block.find(b'\x1b<10spec_prompt') == 0:
             self.game.pushevent('prompt', line)
             return
-        #\x1b<41summon_rift_entity 9\x1b>41....
+        #b:b'\x1b<41summon_rift_entity 9\x1b>41'
+        #b:b'\x1b<41heal_self 1\x1b>41'
         if block.find(b'\x1b<41') == 0:
             line = block[4:block.find(b'\x1b', 1)]
             line = line.split(b' ')
             spellname = line[0].decode('utf8')
             spellticks = line[1].decode('utf8')
-            self.game.pushevent('spelltick', spellname, spellticks)
+            self.game.pushevent('spelltick', spellname, int(spellticks))
             return
         #b:b'\x1b<10chan_sales\x1b|Broetchen {sales}: sold\r\n\x1b>10'
         #b:b'\x1b<10chan_newbie\x1b|\x1b[1;33mToffzen [newbie]: a boost\x1b[m\r\n\x1b>10'
@@ -173,7 +159,7 @@ class ProviderStandardEvent:
         #b:b'\x1b<10chan_party\x1b|\x1b[1;35mKmcg [party]: test\x1b[m\r\n\x1b>10'
         #b:b'\x1b<10chan_sky-\x1b|Shedevil [sky-]: why i got leads :D\r\n\x1b>10'
         if block.find(b'\x1b<10chan_') == 0:
-            _line = self.stripofescapecodes(line)
+            _line = self.game.stripofescapecodes(line)
 
             # figure out what type of symbols surround the channel name
             head = _line[0:_line.find(':')]
@@ -246,7 +232,7 @@ class ProviderStandardEvent:
             return True
 
         # get ourselves a pure string which is easier to work with
-        _line = self.stripofescapecodes(line)
+        _line = self.game.stripofescapecodes(line)
 
         # block login event from being produced after this
         if _line == '======[ ATTENTION ]==================================================':
@@ -258,7 +244,14 @@ class ProviderStandardEvent:
             if parts[1] == 'tells' and parts[2] == 'you' and parts[3].startswith("'"):
                 who = parts[0]
                 msg = ' '.join(parts[3:]).strip("'")
-                self.game.pushevent('tell', who, msg, line)
+                self.game.pushevent('tell', who, '$me', msg, line)
+                return
+            #l:b"\x1b[1;37mYou tell Wick 'how many you done so far?'\x1b[0m"
+            if _line.find('You tell') == 0:
+                who = _line[_line.find('l ') + 2:_line.find('\'')].strip()
+                msg = _line[_line.find('\'') + 1:].strip('\'')
+                self.game.pushevent('tell', '$me', who, msg, line)
+                return
 
         # rift walker entity support for events
         if _line.startswith('--=') and _line.find('=--') == len(_line) - 3:

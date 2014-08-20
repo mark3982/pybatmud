@@ -16,6 +16,22 @@ class Game:
         self.connected = False
         self.ereg = {}
 
+    def stripofescapecodes(self, line):
+        line = line.decode('utf8', 'replace')
+
+        parts = line.split('\x1b')
+
+        line = []
+
+        line.append(parts[0])
+
+        for x in range(1, len(parts)):
+            part = parts[x]
+            part = part[part.find('m') + 1:]
+            line.append(part)
+
+        return ''.join(line)
+
     def start(self):
         self.c = Client('bat.org', 23)
 

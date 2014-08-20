@@ -12,7 +12,7 @@ class QRisingLabel(QtGui.QLabel):
 
     def __init__(self, parent, text, stylename, posoff):
         super().__init__(parent)
-        self.ticktimer = QtCore.QTimer(self)
+        self.ticktimer = QtCore.QTimer(self.parent())
         ticktimer = self.ticktimer
 
         def __tick():
