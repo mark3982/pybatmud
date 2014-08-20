@@ -1,3 +1,5 @@
+import math
+
 from PyQt4 import QtCore
 from PyQt4 import QtGui
 
@@ -68,21 +70,39 @@ class QAdvancedTabBar(QtGui.QFrame):
         self.arrange()
 
     def arrange(self):
-        wpe = self.width() / len(self.tabs)
+        rowcnt = math.ceil(len(self.tabs) / 8)
+        wpe = self.width() / min(8, len(self.tabs))
+        hpe = self.height() / rowcnt
+
         cx = 0
+        cy = 0
         for x in range(0, len(self.tabs)):
             tab = self.tabs[x]
-            tab.tab.move(cx, 0)
-            tab.tab.resize(wpe - 3, self.height() - 3)
-            tab.tablab.resize(wpe, self.height())
+            tab.tab.move(cx + 1, cy + 1)
+            tab.tab.resize(wpe - 3, hpe - 3)
+            tab.tablab.resize(wpe - 3, hpe - 3)
             cx = cx + wpe
+            if x % 8 == 7:
+                cx = 0
+                cy = cy + hpe
 
 class QAdvancedTabWidget(QtGui.QFrame):
     def __init__(self, parent):
         super().__init__(parent)
 
+        self.split = QtGui.QSplitter(self)
         self.tabbar = QAdvancedTabBar(self)
-        self.secwid = QtGui.QWidget(self)
+        self.secwid = QtGui.QFrame(self)
+
+        self.secwid.resizeEvent = lambda event: self.secwidresize(self.secwid, event)
+
+        self.split.setOrientation(0)
+        self.split.addWidget(self.tabbar)
+        self.split.addWidget(self.secwid)
+        self.split.setSizes([50, 500])
+
+        self.split.show()
+
         self.sectabheight = 40
         self.tabs = []
 
@@ -129,12 +149,16 @@ class QAdvancedTabWidget(QtGui.QFrame):
         return self.lastActiveWidget
 
     def resizeEvent(self, event):
-        self.secwid.move(1, self.sectabheight)
-        self.tabbar.move(1, 1)
-        self.secwid.resize(self.width() - 2, self.height() - self.sectabheight - 2)
-        self.tabbar.resize(self.width() - 2, self.sectabheight - 2)
+        #self.secwid.move(1, self.sectabheight)
+        #self.tabbar.move(1, 1)
+        #self.secwid.resize(self.width() - 2, self.height() - self.sectabheight - 2)
+        #self.tabbar.resize(self.width() - 2, self.sectabheight - 2)
+        self.split.resize(self.width(), self.height())
+        #self.secwid.resize(self.secwid.parent().width(), self.secwid.parent().height())
+
+    def secwidresize(self, secwid, event):
         for g in self.tabs:
-            g[1].resize(self.secwid.width(), self.secwid.height())
+            g[1].resize(secwid.width(), secwid.height())
 
     def getTabParent(self):
         return self.secwid

@@ -36,6 +36,8 @@ class QChannelManager:
         self.mainchgrpwidget = self.createchannelgroup({
             'All':      ('$all',),        # first tab channels named All
             'Tells':    ('$tells',),
+            'Battle':   ('$battle',),
+            'Spells':   ('$spells',),
         })
 
         game.registerforevent('prompt', self.event_prompt, Priority.Normal)
@@ -57,7 +59,7 @@ class QChannelManager:
                     added = True
         if not added:
             # automatically create a channel to hold conversation
-            console = self.createchannel(self.mainchgrpwidget, (chan,))
+            console = self.createchannel(self.mainchgrpwidget, (chan,), chan)
             self.addlinetoconsole(console, line)
 
     def event_prompt(self, event, prompt):
@@ -100,7 +102,7 @@ class QChannelManager:
         if delivered is False:
             # ok we did not find a window to handle this.. so we need
             # to create a channel in a window that can handle it
-            console = self.createchannel(self.mainchgrpwidget, (who,))
+            console = self.createchannel(self.mainchgrpwidget, (who,), who)
             self.addlinetoconsole(console, line)
 
     def event_lineunknown(self, event, line):
@@ -123,13 +125,12 @@ class QChannelManager:
                     self.addlinetoconsole(console, line)
 
     def addlinetoconsole(self, console, line):
-        tabwidget = console.parent().parent()
+        tabwidget = console.parent().parent().parent()
 
         # would have used an `is` but some python implementations
         # may not handle it correctly so to be safe i use the `==`
         # -kmcg
         if tabwidget.currentWidget() != console:
-            print('ADDING FLAHSER')
             tabwidget.tab(console).setState(TabState.Alerted)
 
         console.processthenaddline(line)
@@ -190,7 +191,7 @@ class QChannelManager:
                     page.setcommandline(text)
         self.chistory[-1] = text
 
-    def createchannel(self, chgrpwidget, channels):
+    def createchannel(self, chgrpwidget, channels, title):
         """Create channel in specified channel group.
         """
         tabwidget = chgrpwidget.qtabwidget
@@ -199,10 +200,18 @@ class QChannelManager:
         qconsole.hide()
         qconsole.setupdowncallback(self.updowncallback)
         qconsole.setcommandchangedcallback(self.commandchangedcallback)
-        tabwidget.addTab(qconsole, ', '.join(channels))
+        tabwidget.addTab(qconsole, title)
         qconsole.show()
 
         qconsole.chanlist = channels
+
+        # check if single input
+        if len(channels) < 2:
+            # check if channel only
+            if channels[0][0] == '#':
+                # add prefix for talking to that channel
+                qconsole.setcommandprefix('%s say ' % (channels[0][1:]))
+
         qconsole.commandEvent = self.commandEvent
         qconsole.show()
         return qconsole
@@ -235,7 +244,7 @@ class QChannelManager:
         css = self.parent.styleSheet()
         for changrptitle in channelgroups:
             channels = channelgroups[changrptitle]
-            console = self.createchannel(chgrpwidget, channels)
+            console = self.createchannel(chgrpwidget, channels, changrptitle)
             if '$all' in channels:
                 allconsole = console
         # save the sub-window and tab widget

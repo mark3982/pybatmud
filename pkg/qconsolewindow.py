@@ -127,9 +127,9 @@ class QConsoleWindow(QtGui.QWidget):
         self.sethadfocus(True)
 
     def _commandEvent(self):
-        text = self.ce.text()       # get command box text
+        text = self.cmdprefix + self.ce.text()       # get command box text
         self.ce.setText('')         # clear command box
-        #self.setprompt(b'')         # clear prompt
+        #self.setprompt(b'')        # clear prompt
         return self.commandEvent(text)
 
     def dummyKeyPressEvent(self, event):
@@ -145,6 +145,9 @@ class QConsoleWindow(QtGui.QWidget):
     def setupdowncallback(self, cb):
         self.updowncallback = cb
 
+    def setcommandprefix(self, cmdprefix):
+        self.cmdprefix = cmdprefix
+
     def setcommandline(self, text):
         self.ce.setText(text)
 
@@ -153,6 +156,8 @@ class QConsoleWindow(QtGui.QWidget):
         self.pwin = pwin
 
         self._hadfocus = False
+
+        self.cmdprefix = ''
 
         self.setObjectName('ConsoleWindow')
 
@@ -173,7 +178,7 @@ class QConsoleWindow(QtGui.QWidget):
         self.wp.keyPressEvent = self.keyPressEvent
 
         self.ce.returnPressed.connect(lambda: self._commandEvent())
-
+ 
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
         # hopefully this ends up calling resizeEvent
@@ -247,6 +252,11 @@ class QConsoleWindow(QtGui.QWidget):
         # javascript call and unescaped quotes will screw it up
         line = line.replace('"', '\\"')
 
+        line = line.replace('<', '&lt;')
+        line = line.replace('>', '&gt;')
+
+        line = line.replace('-', '<nobr>-</nobr>')
+
         # split it to handle terminal escape codes
         parts = line.split('\x1b')
 
@@ -265,7 +275,6 @@ class QConsoleWindow(QtGui.QWidget):
                 hexcolor = hexcolordimblue(hexcolor, 0.4)
                 #hexcolor = hexcolordimer(hexcolor, 1.0, 1.0, 0.6)
                 hexcolor = tupletohexcolor(hexcolor)
-                print('HEXCOLOR', hexcolor)
                 rmsg = part[part.find('m') + 1:]
                 rmsg = rmsg.replace('   ', '&nbsp;' * 3)
                 rmsg = rmsg.replace(' ', '&nbsp;')
