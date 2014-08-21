@@ -31,7 +31,7 @@ class QMainWindow(QtGui.QWidget):
         super().__init__()
 
         # load the style sheet
-        if os.platform.find('win') == 0:
+        if sys.platform.find('win') == 0:
             fd = open('./styles/win_default.css', 'r')
             css = fd.read()
             fd.close()
