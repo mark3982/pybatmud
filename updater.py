@@ -72,7 +72,7 @@ class QUpdateWindow(QtGui.QWidget):
         self.setFixedSize(300, 300)
         self.show()
     def mr(self, event, w):
-        if False:
+        if True:
             # create cache directory
             tag = w.tag
             # clear install directory

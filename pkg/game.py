@@ -13,9 +13,15 @@ class Priority:
     Low             =       25
 
 class Game:
+    _instance = None
+
     def __init__(self):
+        Game._instance = self
         self.connected = False
         self.ereg = {}
+
+    def instance():
+        return Game._instance
 
     def stripofescapecodes(self, line):
         line = line.decode('utf8', 'replace')
@@ -95,14 +101,20 @@ class Game:
     def pushevent(self, event, *args):
         """Push the event to any registered callbacks.
         """
+        if event == 'login' or event == 'whereami':
+            print('got pushevent for login')
         if event not in self.ereg:
             return
+        if event == 'login' or event == 'whereami':
+            print('  going into loop')
         # call in priority ordering (highest first)
         for x in range(0, len(self.ereg[event])):
             cb = self.ereg[event][x]
             st = time.time()
             res = cb[0](event, *args)
             dt = time.time() - st
+            if event == 'login':
+                print('calling', cb[0])
             if dt > 0.5:
                 # give some kind of warning.. likely the user has experienced
                 # the UI being non-responsive, or they would have if they were
@@ -110,5 +122,8 @@ class Game:
                 # be wrong.. also helpful for developers to see their plugin
                 # is taking a bit too longer to perform it's action
                 print('[warning] call %s seconds for %s!' % (dt, cb[0]))
+            if type(res) == tuple:
+                if res[0] is True:
+                    return res
             if res is True:
-                return
+                return res

@@ -56,7 +56,9 @@ class ProviderStandardEvent:
         # i could optmize this a bit.. but its hardly called so
         # i opted for code size reduction and readability
         if line.find(b'What is your name:') == 0:
+            print('providerstandard login')
             if not self.seenattention:
+                print('self.seenattention:%s' % self.seenattention)
                 self.game.pushevent('login')
             return
 
@@ -161,6 +163,27 @@ class ProviderStandardEvent:
             There are cases where part of a refined block is left over. This will simply
             be prepended to the next line or refined block that comes through the pipeline.
         '''
+
+        if block.find(b'\x1b<10spec_map') == 0:
+            s = self.game.stripofescapecodes(line)
+
+            # remove \r
+            s = s.replace('\r', '')
+
+            # break into lines
+            lines = s.split('\n')
+
+            # getting ending index of map border
+            ei = lines[1].find(lines[1][0], 1)
+
+            # convert into actual letter map
+            xmap = []
+            for x in range(1, len(lines) - 1):
+                seg = lines[x]
+                seg = seg[1:ei]
+                xmap.append(seg)
+
+            self.game.pushevent('map', xmap)
 
         #b:b'\x1b<10spec_battle\x1b|Shaking pigeon scratches Fire entity making small marks.\r\n\x1b>10'
         if block.find(b'\x1b<10spec_battle') == 0:
@@ -316,6 +339,33 @@ class ProviderStandardEvent:
         if _line == '======[ ATTENTION ]==================================================':
             self.seenattention = True
             return
+
+        #l:b"You are in 'Green Highlands', which is on the continent of Laenor. (Coordinates: 554x, 363y; Global: 8746x, 8555y)"
+        if _line.find('You are in \'') == 0:
+            area = _line[_line.find('\'') + 1: _line.find('\',')]
+            lcords = _line[_line.find(':') + 1:_line.find(';')].strip()
+            gcords = _line[_line.rfind(':') + 1:_line.find(')')].strip()
+            # lcords = '554x, 363y'
+            # gcords = '8746x, 8555y'
+            lcords = lcords.split(',')
+            x = lcords[0].strip()[0:-1]
+            y = lcords[1].strip()[0:-1]
+            lcords = (int(x), int(y))
+            gcords = gcords.split(',')
+            x = gcords[0].strip()[0:-1]
+            y = gcords[1].strip()[0:-1]
+            gcords = (int(x), int(y))
+            '''
+                We should only get a return of type tuple if an event
+                handler terminated the propgation, and then we check
+                if they specified to completely drop the event so that
+                the output is not displayed to the console.
+            '''
+            res = self.game.pushevent('whereami', area, lcords, gcords)
+            if type(res) == tuple:
+                if res[1] is True:
+                    # drop this event right where it is since it has been intercepted
+                    return True
 
         parts = _line.split(' ')
         if len(parts) > 3:

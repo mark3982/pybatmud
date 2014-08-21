@@ -155,6 +155,12 @@ class QChannelManager:
         self.chistory[-1] = line
         # make new history line
         self.chistory.append('')
+        res = self.game.pushevent('command', line)
+        if res is True or (type(res) == tuple and res[0] is True):
+            # the command was intercepted, processed, and the handler
+            # has requested that we drop the command and not forward
+            # it to the game
+            return
         self.game.command(line)
 
     def updowncallback(self, up):

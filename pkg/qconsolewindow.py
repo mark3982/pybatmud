@@ -4,6 +4,7 @@ from PyQt4 import QtWebKit
 
 from pkg.qsubwindow import QSubWindow
 from pkg.dprint import dprint
+from pkg.game import Game
 
 '''
     These are used to manipulate hex colors. I mainly had to implement these
@@ -54,7 +55,7 @@ class QConsoleWindow(QtGui.QWidget):
         self.wp.resize(self.width() - 6, self.height() - 25 - 3)
         self.ce.move(2, self.height() - (25 + 3))
         self.ce.resize(self.width() - 5, 26)
-        self.wp.page().mainFrame().evaluateJavaScript('lines.style.width = "%spx";' % (self.width() - 6 - 20))
+        self.wp.page().mainFrame().evaluateJavaScript('lines.style.width = "%spx";' % (self.width() - 6 - 25))
 
     def keyPressEvent(self, event):
         """Helps ensure keystrokes go to the command box.
