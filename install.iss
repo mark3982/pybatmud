@@ -34,7 +34,6 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 ;Source: "C:\Users\kmcguire\Desktop\kmcg3413.net\pybatmud\pkg\*"; DestDir: "{app}\pkg"; Flags: ignoreversion recursesubdirs createallsubdirs
 ;Source: "C:\Users\kmcguire\Desktop\kmcg3413.net\pybatmud\media\*"; DestDir: "{app}\media"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "C:\Users\kmcguire\Desktop\kmcg3413.net\pybatmud\updater.py"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Users\kmcguire\Desktop\kmcg3413.net\pybatmud\noupdate.lnk"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Users\kmcguire\Desktop\kmcg3413.net\pybatmud\updater.lnk"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Python34MinQt\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files

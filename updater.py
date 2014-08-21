@@ -20,9 +20,12 @@ class QLocalApplication(QtGui.QApplication):
 
     def notify(self, receiver, event):
         if self._notify is not None:
+            # redirect to callback
             ret = self._notify(self, receiver, event)
+            # callback did not handle anything?
             if ret is not None:
                 return ret
+        # call our super method
         return super().notify(receiver, event)
 
 def fetch(url):
@@ -115,7 +118,7 @@ class QUpdateWindow(QtGui.QWidget):
         tagparts = tagparts[0].split('.') + [tagparts[1]]
 
         # make sure our updater supports the tag
-        if tagparts[-1] != 'green':
+        if tagparts[-1] != 'blue':
             return
 
         xtype = tagparts[-2][-1] 
