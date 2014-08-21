@@ -45,13 +45,13 @@
 #MobHealthBarText {
     font-size:          14pt;
     color:              #ffffff;
-    font-family:        courier;
+    font-family:        consolas;
 }
 
 #SpellDesc {
     font-size:          14pt;
     color:              #ffffff;
-    font-family:        courier;
+    font-family:        consolas;
 }
 
 #SpellBar {
@@ -80,7 +80,7 @@
 #CommandLine {
     color:              white;
     background-color:   #101010; 
-    font-family:        courier;
+    font-family:        consolas;
     font-size:          10pt;
     border-color:       #888888;
 }
@@ -211,6 +211,6 @@
 body { 
     color:              white;              /* is overidden by .hc_* classes anyway */
     /* background-color:   #345634; if enabled will provide a neat effect */
-    font-family:        courier; 
+    font-family:        consolas; 
     font-size:          10pt;
 }

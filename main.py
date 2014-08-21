@@ -2,6 +2,7 @@ import socket
 import sys
 import os.path
 import os
+import sys
 
 from PyQt4 import QtGui
 from PyQt4 import QtCore
@@ -30,9 +31,14 @@ class QMainWindow(QtGui.QWidget):
         super().__init__()
 
         # load the style sheet
-        fd = open('./styles/default.css', 'r')
-        css = fd.read()
-        fd.close()
+        if os.platform.find('win') == 0:
+            fd = open('./styles/win_default.css', 'r')
+            css = fd.read()
+            fd.close()
+        else:
+            fd = open('./styles/default.css', 'r')
+            css = fd.read()
+            fd.close()
 
         self.setStyleSheet(css)
 
