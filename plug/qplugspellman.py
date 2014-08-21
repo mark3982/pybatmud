@@ -13,6 +13,8 @@ class QPlugSpellMan(QSubWindow):
 
         self.spells = {}
 
+        self.resizeon(False)
+
         game.registerforevent('spellspec', self.event_spellspec)
         game.registerforevent('spelltick', self.event_spelltick)
         game.registerforevent('lineunknown', self.event_lineunknown)

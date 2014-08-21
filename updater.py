@@ -90,16 +90,26 @@ class QUpdateWindow(QtGui.QWidget):
         self.setParent(None)
 
     def make(self, cy, h, tag, current_tag):
-        if tag['name'][-1] == 'b':
+        tagname = tag['name']
+        tagparts = tagname.split('-')
+        tagparts = tagparts[0].split('.') + [tagparts[1]]
+
+        # make sure our updater supports the tag
+        if tagparts[-1] != 'green':
+            return
+
+        xtype = tagparts[-2][-1] 
+
+        if xtype == 'b':
             tagtype = 'BETA'
             pcolor = QtGui.QColor(66, 66, 0, 66)
-        elif tag['name'][-1] == 'a':
+        elif xtype == 'a':
             tagtype = 'ALPHA'
             pcolor = QtGui.QColor(66, 0, 0, 66)
-        elif tag['name'][-1] == 'c':
+        elif xtype == 'c':
             tagtype = 'RELEASE CANIDATE'
             pcolor = QtGui.QColor(0, 0, 66, 66)
-        elif tag['name'][-1] == 'r':
+        elif xtype == 'r':
             tagtype = 'RELEASE'
             pcolor = QtGui.QColor(99, 255, 99, 255)
         else:

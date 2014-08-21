@@ -160,8 +160,8 @@
 .hc_fg_blue { color: #000099; }
 .hc_fg_magenta { color: #999900; }
 .hc_fg_cyan { color: #990099; }
-.hc_fg_white { color: #999999; }
-.hc_fg_default { color: #999999; }
+.hc_fg_white { color: #a9a9a9; }
+.hc_fg_default { color: #a9a9a9; }
 /* html color foreground bright */
 .hc_bfg_black { color: #333333; }
 .hc_bfg_red { color: #ff9999; }
@@ -180,7 +180,7 @@
 .hc_bg_blue { background-color: #000099; }
 .hc_bg_magenta { background-color: #999900; }
 .hc_bg_cyan { background-color: #990099; }
-.hc_bg_white { background-color: #999999; }
+.hc_bg_white { background-color: #a9a9a9; }
 .hc_bg_default { background-color: #000000; }
 
 /* html prompt in console window, actually colored by .hc_* classes */
@@ -203,7 +203,7 @@
     to be wrapped here with out manually inserting line breaks
 */
 .lines {
-    width:      560px;
+    width:      580px;
     word-wrap:  break-word;
 }
 
@@ -211,6 +211,6 @@
 body { 
     color:              white;              /* is overidden by .hc_* classes anyway */
     /* background-color:   #345634; if enabled will provide a neat effect */
-    font-family:        consolas; 
+    font-family:        courier; 
     font-size:          10pt;
 }

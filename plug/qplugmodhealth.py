@@ -14,6 +14,8 @@ class QPlugMobHealth(QSubWindow):
         self.bar = QtGui.QFrame(self)
         self.txt = QtGui.QLabel(self)
 
+        self.resizeon(False)
+
         self.move(400, 0)
         self.resize(400, 30)
 

@@ -54,6 +54,7 @@ class QConsoleWindow(QtGui.QWidget):
         self.wp.resize(self.width() - 6, self.height() - 25 - 3)
         self.ce.move(2, self.height() - (25 + 3))
         self.ce.resize(self.width() - 5, 26)
+        self.wp.page().mainFrame().evaluateJavaScript('lines.style.width = "%spx";' % (self.width() - 6 - 20))
 
     def keyPressEvent(self, event):
         """Helps ensure keystrokes go to the command box.
@@ -183,7 +184,7 @@ class QConsoleWindow(QtGui.QWidget):
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
         # hopefully this ends up calling resizeEvent
-        self.wp.resize(600, 100)
+        self.wp.resize(620, 100)
 
         self.wp.setObjectName('ConsoleHTMLView')
         # style="font-size: 8pt; line-height: 1; font-family: consolas;"
