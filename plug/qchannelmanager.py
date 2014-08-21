@@ -85,7 +85,7 @@ class QChannelManager:
         """
         for item in banner:
             self.event_lineunknown(event, item)
-    def event_tell(self, event, fromwho, towho, msg, line):
+    def event_tell(self, event, fromwho, towho, line):
         """Route tell to appropriate channel.
 
         We route the tell to the appropriate channel by first looking
@@ -230,8 +230,10 @@ class QChannelManager:
                     'football', 'houses', 'infalert', 'mudcon',
                     'politics', 'sales', 'stream', 'wanted'
                 )
-                # add prefix for talking to that channel
-                qconsole.setcommandprefix('%s say ' % (channels[0][1:]))
+                if channels[0][1:] in builtin:
+                    qconsole.setcommandprefix('%s ' % (channels[0][1:]))
+                else:
+                    qconsole.setcommandprefix('%s say ' % (channels[0][1:]))
             if channels[0][0] == '!':
                 # add prefix for talking over tells to player
                 qconsole.setcommandprefix('tell %s ' % (channels[0][1:]))

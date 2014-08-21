@@ -87,20 +87,21 @@ class QLocalApplication(QtGui.QApplication):
             return True
         return super().notify(receiver, event)
 
-def main():
-    app = QLocalApplication(sys.argv)
-    # Cleanlooks
-    # Plastique
-    # Motfif
-    # CDE
-    style = QtGui.QStyleFactory.create('Plastique')
-    app.setStyle(style)
-
-    #app.setGraphicsSystem('raster')
+def main(standalone = False):
+    if standalone:
+        app = QLocalApplication(sys.argv)
+        # Cleanlooks
+        # Plastique
+        # Motfif
+        # CDE
+        style = QtGui.QStyleFactory.create('Plastique')
+        #app.setStyle(style)
+        #app.setGraphicsSystem('raster')
 
     w = QMainWindow()
 
-    sys.exit(app.exec_())
+    if standalone:
+        sys.exit(app.exec_())
 
 '''
     What happens is if we are started directly just run as normal, but
@@ -108,4 +109,4 @@ def main():
     tell us when to run. --kmcg
 '''
 if __name__ == '__main__':
-    main()
+    main(True)

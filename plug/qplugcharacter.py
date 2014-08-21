@@ -137,7 +137,6 @@ class QPlugCharacter(QSubWindow):
             return
 
         if self.myclass != xclass:
-            print('SETTING PIC')
             self.myclass = xclass
             # update our character portrait
             self.classimage.setPixmap(QtGui.QPixmap('./media/classpics/%s_%s.png' % (xclass, 'male')))

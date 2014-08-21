@@ -277,6 +277,9 @@ class ProviderStandardEvent:
             self.game.pushevent('lineunknown', line)
             return True
 
+        # get ourselves a pure string which is easier to work with
+        _line = self.game.stripofescapecodes(line)
+
         # tell messages continuation (doing it the old school way)
         if self.privmsg_nextline_tome is not False:
             # if we have still not found it then.. keep looking
@@ -309,9 +312,6 @@ class ProviderStandardEvent:
             self.banner.append(line)
             return True
 
-        # get ourselves a pure string which is easier to work with
-        _line = self.game.stripofescapecodes(line)
-
         # block login event from being produced after this
         if _line == '======[ ATTENTION ]==================================================':
             self.seenattention = True
@@ -330,7 +330,7 @@ class ProviderStandardEvent:
 
             #l:b"\x1b[1;37mYou tell Wick 'how many you done so far?'\x1b[0m"
             if parts[0] == 'You' and parts[1] == 'tell':
-                who = parts[3]
+                who = parts[2]
                 msg = _line[_line.find('\'') + 1:].strip('\'')
                 if _line[-1] != "'":
                     self.privmsg_nextline_fome = [who, line]
