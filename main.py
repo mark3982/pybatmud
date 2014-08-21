@@ -1,3 +1,5 @@
+"""Main startup for Qt4 and client initialization. 
+"""
 import socket
 import sys
 import os.path
