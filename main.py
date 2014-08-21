@@ -84,6 +84,8 @@ class QMainWindow(QtGui.QWidget):
 class QLocalApplication(QtGui.QApplication):
     def __init__(self, argv):
         super().__init__(argv)
+        self.notifysuper = True
+
     def notify(self, receiver, event):
         if event.type() == QtCore.QEvent.KeyPress and event.key() == QtCore.Qt.Key_Tab:
             if isinstance(receiver, QConsoleWindow):
@@ -91,7 +93,9 @@ class QLocalApplication(QtGui.QApplication):
             if isinstance(receiver.parent(), QConsoleWindow):
                 receiver.parent().keyPressEvent(event)          # hand to parent which is QConsoleWindow
             return True
-        return super().notify(receiver, event)
+        if self.notifysuper:
+            return super().notify(receiver, event)
+        return None
 
 def main(standalone = False):
     if standalone:

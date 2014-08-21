@@ -10,6 +10,21 @@ import time
 from PyQt4 import QtGui
 from PyQt4 import QtCore
 
+class QLocalApplication(QtGui.QApplication):
+    """Helps fix problem of main needing to catch notify event.
+    """
+    def __init__(self, argv):
+        super().__init__(argv)
+        self._notify = None             # the notification callback for redirection
+        self.notifysuper = False        # would be False in standalone (see main.py)
+
+    def notify(self, receiver, event):
+        if self._notify is not None:
+            ret = self._notify(self, receiver, event)
+            if ret is not None:
+                return ret
+        return super().notify(receiver, event)
+
 def fetch(url):
     try:
         response = urllib.request.urlopen(url)
@@ -21,9 +36,10 @@ def fetch(url):
     return None
 
 class QUpdateWindow(QtGui.QWidget):
-    def __init__(self, current_tag, tags, userbase):
+    def __init__(self, current_tag, tags, userbase, app):
         super().__init__()
 
+        self.app = app
         self.userbase = userbase
         self.tags = tags
         self.current_tag = current_tag
@@ -53,30 +69,31 @@ class QUpdateWindow(QtGui.QWidget):
         self.setFixedSize(300, 300)
         self.show()
     def mr(self, event, w):
-        # create cache directory
-        tag = w.tag
-        # clear install directory
-        installdir = '%s/client' % self.userbase
-        print('installdir', installdir)
-        if os.path.exists(installdir):
-            shutil.rmtree(installdir)
-        # download the package..
-        zipball_url = tag['zipball_url']
-        # see if we already have the zip ball
-        if not os.path.exists('./githubcache/%s.zip' % tag['name']):
-            # download the zipball
-            print('downloading zipball...')
-            zipball = fetch(zipball_url)
-            fd = open('./githubcache/%s.zip' % tag['name'], 'wb')
-            fd.write(zipball)
-            fd.close()
-        # install the package..
-        zf = zipfile.ZipFile('./githubcache/%s.zip' % tag['name'])
-        zf.extractall('./temp')
-        node = os.listdir('./temp')[0]
-        shutil.move('./temp/%s' % node, './client')
-        shutil.rmtree('./temp')
-        #QtGui.QApplication.quit()
+        if False:
+            # create cache directory
+            tag = w.tag
+            # clear install directory
+            installdir = '%s/client' % self.userbase
+            print('installdir', installdir)
+            if os.path.exists(installdir):
+                shutil.rmtree(installdir)
+            # download the package..
+            zipball_url = tag['zipball_url']
+            # see if we already have the zip ball
+            if not os.path.exists('./githubcache/%s.zip' % tag['name']):
+                # download the zipball
+                print('downloading zipball...')
+                zipball = fetch(zipball_url)
+                fd = open('./githubcache/%s.zip' % tag['name'], 'wb')
+                fd.write(zipball)
+                fd.close()
+            # install the package..
+            zf = zipfile.ZipFile('./githubcache/%s.zip' % tag['name'])
+            zf.extractall('./temp')
+            node = os.listdir('./temp')[0]
+            shutil.move('./temp/%s' % node, './client')
+            shutil.rmtree('./temp')
+            #QtGui.QApplication.quit()
 
         os.chdir(self.userbase + '/client')
         # add path to python system then import main module
@@ -84,6 +101,9 @@ class QUpdateWindow(QtGui.QWidget):
         sys.path.append(self.userbase + '/client')
 
         import main
+
+        self.app._notify = main.QLocalApplication.notify
+
         main.main()
 
         self.hide()
@@ -189,7 +209,7 @@ def update(userbase):
         #zipball = fetch(zipball_url)
         #print(len(zipball))
 
-    app = QtGui.QApplication(sys.argv)
+    app = QLocalApplication(sys.argv)
     style = QtGui.QStyleFactory.create('Plastique')
     app.setStyle(style)
 
@@ -200,7 +220,7 @@ def update(userbase):
     else:
         current_tag = None
 
-    w = QUpdateWindow(current_tag, tags, userbase)
+    w = QUpdateWindow(current_tag, tags, userbase, app)
 
     app.exec_()
 
