@@ -101,20 +101,14 @@ class Game:
     def pushevent(self, event, *args):
         """Push the event to any registered callbacks.
         """
-        if event == 'login' or event == 'whereami':
-            print('got pushevent for login')
         if event not in self.ereg:
             return
-        if event == 'login' or event == 'whereami':
-            print('  going into loop')
         # call in priority ordering (highest first)
         for x in range(0, len(self.ereg[event])):
             cb = self.ereg[event][x]
             st = time.time()
             res = cb[0](event, *args)
             dt = time.time() - st
-            if event == 'login':
-                print('calling', cb[0])
             if dt > 0.5:
                 # give some kind of warning.. likely the user has experienced
                 # the UI being non-responsive, or they would have if they were

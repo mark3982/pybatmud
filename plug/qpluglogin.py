@@ -56,7 +56,6 @@ class QPlugLogin(QSubWindow):
             QtGui.QMessageBox.warning(self, 'Login', 'The user and password fields must be filled out.')
             return
 
-
         self.game.command(xuser)
         self.game.command(xpass)
         self.hide()
@@ -65,3 +64,4 @@ class QPlugLogin(QSubWindow):
         """Display the login window.
         """
         self.show()
+        self.raise_()

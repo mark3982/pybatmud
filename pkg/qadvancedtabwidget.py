@@ -9,7 +9,8 @@ class TabState:
     Alerted         = 2
 
 class QAdvancedTab:
-    def __init__(self, tab, tablab):
+    def __init__(self, tab, tablab, tabbar):
+        self.tabbar = tabbar
         self.tab = tab
         self.tablab = tablab
         self.tablab.setObjectName('TabLabel')
@@ -26,6 +27,9 @@ class QAdvancedTab:
         self.tab.style().unpolish(self.tab)
         self.tab.style().polish(self.tab)
 
+    def remove(self):
+        self.tabbar.remTab(self)
+
 class QAdvancedTabBar(QtGui.QFrame):
     def __init__(self, parent):
         super().__init__(parent)
@@ -35,10 +39,18 @@ class QAdvancedTabBar(QtGui.QFrame):
 
         self.setObjectName('Test')
 
-    def addTab(self, text):
+    def remTab(self, tab):
+        self.tabs.remove(tab)
+        tab.tab.hide()
+        tab.tab.setParent(None)
+        tab.tablab.hide()
+        tab.tablab.setParent(None)
+        self.arrange()
+
+    def addTab(self, text, menu = None):
         tab = QtGui.QWidget(self)
         tablab = QtGui.QLabel(tab)
-        _tab = QAdvancedTab(tab, tablab)
+        _tab = QAdvancedTab(tab, tablab, self)
         self.tabs.append(_tab)
 
         tablab.setText(text)
@@ -47,6 +59,8 @@ class QAdvancedTabBar(QtGui.QFrame):
         tablab.move(0, 0)
 
         tab.mousePressEvent = lambda event: self.tabMousePressEvent(_tab)
+        if menu is not None:
+            tablab.contextMenuEvent = lambda event: menu.exec(event.globalPos())
 
         _tab.setState(TabState.Inactive)
 
@@ -70,6 +84,8 @@ class QAdvancedTabBar(QtGui.QFrame):
         self.arrange()
 
     def arrange(self):
+        if len(self.tabs) < 1:
+            return
         rowcnt = math.ceil(len(self.tabs) / 8)
         wpe = self.width() / min(8, len(self.tabs))
         hpe = self.height() / rowcnt
@@ -163,14 +179,23 @@ class QAdvancedTabWidget(QtGui.QFrame):
     def getTabParent(self):
         return self.secwid
 
-    def addTab(self, widget, text):
+    def removeWidget(self, w):
+        for i in self.tabs:
+            if i[1] is w:
+                break
+        self.tabs.remove(i)
+        i[0].remove()
+        i[1].hide()
+        i[1].setParent(None)
+
+    def addTab(self, widget, text, menu = None):
         widget.setParent(self.secwid)
         # this hide call really does not seem to work
         widget.hide()
         # make sure active stays on top
         if self.lastActiveWidget is not None:
             self.lastActiveWidget.raise_()
-        tab = self.tabbar.addTab(text)
+        tab = self.tabbar.addTab(text, menu)
         self.tabs.append((tab, widget))
         widget.resize(self.secwid.width(), self.secwid.height())
         #if self.lastActiveWidget is None:

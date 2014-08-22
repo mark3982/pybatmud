@@ -1,6 +1,7 @@
 import os
 import os.path
 import struct
+import array
 
 from PyQt4 import QtCore
 from PyQt4 import QtGui
@@ -115,13 +116,32 @@ class QPlugMapper(QSubWindow):
         self.toflushtodisk = set()
         self.notes = []
 
+        if os.path.exists('./mapper/notes'):
+            fd = open('./mapper/notes', 'r')
+            lines = fd.readlines()
+            fd.close()
+            for line in lines:
+                parts = line.split('\x00')
+                self.notes.append([int(parts[0]), int(parts[1]), parts[2], None])
+
+        self.csz = 1
+
     def paintEvent(self, event):
         self.rendermap()
 
     def zoomout(self):
-        pass
+        self.csz = self.csz * 0.5
+        self.update()
     def zoomin(self):
-        pass
+        self.csz = self.csz * 2
+        self.update()
+
+    def notesflush(self):
+        fd = open('./mapper/notes', 'w')
+        for note in self.notes:
+            line = '%s\x00%s\x00%s' % (note[0], note[1], note[2])
+            fd.write('%s\n' % line)
+        fd.close()
 
     def event_command(self, event, command):
         parts = command.split(' ')
@@ -133,6 +153,7 @@ class QPlugMapper(QSubWindow):
                     cx = self.lastcord[0]
                     cy = self.lastcord[1]
                     self.notes.append([cx, cy, note, None])
+                    self.notesflush()
 
     def rendermap(self):
         if self.lastcord is None:
@@ -140,9 +161,9 @@ class QPlugMapper(QSubWindow):
         p = QtGui.QPainter()
         p.begin(self)
         p.setPen(QtCore.Qt.black)
-        p.setFont(QtGui.QFont('consolas', 12))
+        p.setFont(QtGui.QFont('consolas', 8))
 
-        csz = 12
+        csz = self.csz
 
         w = self.width() / csz
         h = self.height() / csz
@@ -157,20 +178,23 @@ class QPlugMapper(QSubWindow):
         top = cord[1] - h
         bottom = cord[1] + h
 
-        for y in range(-h, h):
-            for x in range(-w, w):
-                gx = x + cord[0]
-                gy = y + cord[1]
-                v = self.gmapget(gx, gy)
+        ox = (left & 0xff) * csz
+        oy = (top & 0xff) * csz
 
-                py = (y + h) * csz
-                px = (x + w) * csz
+        csx = left >> 8
+        csy = top >> 8
+        clx = right >> 8
+        cly = bottom >> 8
 
-                v = chr(v) 
+        x = -ox
+        for cx in range(csx, clx + 1):
+            y = -oy
+            for cy in range(csy, cly + 1):
+                chunk = self.gmapgetchunk(cx, cy)
+                p.drawImage(QtCore.QRect(x, y, 256 * csz, 256 * csz), chunk, QtCore.QRect(1, 1, 256, 256))
+                y = y + 256 * csz
+            x = x + 256 * csz
 
-                if v in self.landcolor:
-                    p.setPen(self.landcolor[v])
-                p.drawText(px, py, v)
         p.end()
 
         for note in self.notes:
@@ -185,7 +209,7 @@ class QPlugMapper(QSubWindow):
                     # create the note
                     w = QtGui.QLabel(self)
                     w.setText(msg)
-                    w.setStyleSheet('font-family: Arial; font-size: 8pt;')
+                    w.setStyleSheet('font-family: Arial; font-size: 8pt; background-color: rgba(99, 99, 99, 44);')
                     w.show()
                     note[3] = w
                 # position the note
@@ -207,18 +231,20 @@ class QPlugMapper(QSubWindow):
         lx = x & 0xff
         ly = y & 0xff
         #print('lx:%s ly:%s max:%s len:%s' % (lx, ly, 9 * 11, len(self.gmap[cx][cy])))
-        self.gmap[cx][cy][ly * 256 + lx] = v
+        #self.gmap[cx][cy][ly * 256 + lx] = v
+        self.gmap[cx][cy].setPixel(lx, ly, v)
         self.toflushtodisk.add((cx, cy))
 
     def gflush(self):
         """Write all modified chunks out to disk.
         """
         for cx, cy in self.toflushtodisk:
-            fd = open('./mapper/%s_%s' % (cx, cy), 'wb')
-            chunk = self.gmap[cx][cy]
-            for x in range(0, len(chunk)):
-                fd.write(struct.pack('B', chunk[x]))
-            fd.close()
+            #fd = open('./mapper/%s_%s' % (cx, cy), 'wb')
+            #chunk = self.gmap[cx][cy]
+            #for x in range(0, len(chunk)):
+            #    fd.write(struct.pack('B', chunk[x]))
+            #fd.close()
+            self.gmap[cx][cy].save('./mapper/%s_%s.png' % (cx, cy))
 
     def gloadchunk(self, cx, cy):
         """Loads a chunk into memory, or creates a fresh one.
@@ -227,23 +253,42 @@ class QPlugMapper(QSubWindow):
             self.gmap[cx] = {}
         if cy in self.gmap[cx]:
             return
-        mapfile = './mapper/%s_%s' % (cx, cy)
+        mapfile = './mapper/%s_%s.png' % (cx, cy)
         if not os.path.exists(mapfile):
-            print('new chunk')
-            self.gmap[cx][cy] = [0] * (256 * 256)
+            #self.gmap[cx][cy] = [0] * (256 * 256)
+            #self.gmap[cx][cy] = array.array('B', [0 for x in range(256 * 256)])
+            #QtGui.QImage.Format_Indexed8
+            img = QtGui.QImage(256, 256, QtGui.QImage.Format_Indexed8)
+            self.gmap[cx][cy] = img
+            img.setColorCount(256)
+            img.setColor(0, 0)
+            for k in self.landcolor:
+                v = self.landcolor[k]
+                img.setColor(ord(k), v.rgba())
+            img.fill(0)
             return
-        fd = open(mapfile, 'rb')
-        data = fd.read()
-        fd.close()
-        chunk = []
-        if len(data) < 256 * 256:
-            print('warning: chunk disk data less than expected!')
-            # just drop the chunk to recover
-            self.gmap[cx][cy] = [0] * (256 * 256)
-            return
-        for i in range(0, len(data)):
-            chunk.append(data[i])
-        self.gmap[cx][cy] = chunk
+        #fd = open(mapfile, 'rb')
+        #data = fd.read()
+        #fd.close()
+        #chunk = array.array('B')
+        self.gmap[cx][cy] = QtGui.QImage()
+        self.gmap[cx][cy].load(mapfile)
+        #if len(data) < 256 * 256:
+        #    print('warning: chunk disk data less than expected!')
+        #    # just drop the chunk to recover
+        #    #self.gmap[cx][cy] = [0] * (256 * 256)
+        #    #self.gmap[cx][cy] = array.array('B', [0 for x in range(256 * 256)])
+        #    self.gmap[cx][cy] = QtGui.QImage(256, 256, QtGui.QImage.Format_Indexed8)
+        #    self.gmap[cx][cy].fill(0)
+        #    return
+        #for i in range(0, len(data)):
+        #    chunk.append(data[i])
+        #self.gmap[cx][cy] = QtGui.QImage(data, 256, 256, QtGui.QImage.Format_Indexed8)
+        #self.gmap[cx][cy] = chunk
+
+    def gmapgetchunk(self, cx, cy):
+        self.gloadchunk(cx, cy)
+        return self.gmap[cx][cy]
 
     def gmapget(self, x, y):
         cx = x >> 8
@@ -252,10 +297,10 @@ class QPlugMapper(QSubWindow):
         self.gloadchunk(cx, cy) 
         lx = x & 0xff
         ly = y & 0xff
-        return self.gmap[cx][cy][ly * 256 + lx]
+        #return self.gmap[cx][cy][ly * 256 + lx]
+        return self.gmap[cx][cy].pixelIndex(lx, ly)
 
     def processmap(self, xmap, lcords, gcords):
-        print('processing map')
         # 19 wide       [9]
         # 11 tall       [5]
         #cords = (lcords[0] + gcords[0], lcords[1] + gcords[1])
@@ -273,9 +318,7 @@ class QPlugMapper(QSubWindow):
                     continue
                 if self.gmapget(gx, gy) != 0:
                     continue
-                print(xmap[y][x], end='')
                 self.gmapset(gx, gy, ord(xmap[y][x]))
-        print('')
         self.gflush()
         self.update()
 
@@ -284,11 +327,14 @@ class QPlugMapper(QSubWindow):
         self.whereami_intercept = True
         self.lastxmap = xmap
 
-    def event_whereami(self, event, area, lcords, gcords):
-        print('event_whereami', area, lcords, gcords)
+    def event_whereami(self, event, area, zone, cont, lcords, gcords):
         self.lastcord = gcords
         if self.whereami_intercept:
-            self.processmap(self.lastxmap, lcords, gcords)
+            if zone == None:
+                # we do not support being inside a zone (which is a single unit on the global map), mainly
+                # because we have no way to determine our actual position, however i plan to look into trying
+                # matching algorithm to piece together zone maps
+                self.processmap(self.lastxmap, lcords, gcords)
             self.whereami_intercept = False
             return True, True
 

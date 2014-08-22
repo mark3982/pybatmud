@@ -56,9 +56,7 @@ class ProviderStandardEvent:
         # i could optmize this a bit.. but its hardly called so
         # i opted for code size reduction and readability
         if line.find(b'What is your name:') == 0:
-            print('providerstandard login')
             if not self.seenattention:
-                print('self.seenattention:%s' % self.seenattention)
                 self.game.pushevent('login')
             return
 
@@ -309,7 +307,8 @@ class ProviderStandardEvent:
             if _line[-1] != "'":
                 self.privmsg_nextline_tome.append(line)
                 return
-            line = b''.join(line)
+            who = self.privmsg_nextline_tome[0]
+            line = b''.join(self.privmsg_nextline_tome[1:])
             self.privmsg_nextline_tome = False
             self.game.pushevent('tell', who, '$me', msg, line)
             return
@@ -340,9 +339,37 @@ class ProviderStandardEvent:
             self.seenattention = True
             return
 
-        #l:b"You are in 'Green Highlands', which is on the continent of Laenor. (Coordinates: 554x, 363y; Global: 8746x, 8555y)"
+        #You are in 'On Battlement lane' in Dortlewall on the continent of Laenor.
+        #You are in 'Next to Dortlewall', which is on the continent of Laenor.
+        #You are in 'Western gatehouse' in Dortlewall on the continent of Laenor.
+        #You are in 'Green Highlands', which is on the continent of Laenor. (Coordinates: 554x, 363y; Global: 8746x, 8555y)
         if _line.find('You are in \'') == 0:
-            area = _line[_line.find('\'') + 1: _line.find('\',')]
+            parts = _line.split(' ')[3:]
+
+            area = []
+            for x in range(0, len(parts)):
+                part = parts[x]
+                if part == 'in' or part == 'which':
+                    break
+                area.append(part)
+            area = ' '.join(area).strip('\'').strip(',')
+
+            zone = None
+            if parts[x] == 'in':
+                zone = []
+                for x in range(x + 1, len(parts)):
+                    part = parts[x]
+                    if part == 'on':
+                        break
+                    zone.append(part)
+                zone = ' '.join(zone)
+
+            for x in range(x + 1, len(parts)):
+                if parts[x] == 'of':
+                    break
+
+            cont = parts[x + 1].strip('.')
+
             lcords = _line[_line.find(':') + 1:_line.find(';')].strip()
             gcords = _line[_line.rfind(':') + 1:_line.find(')')].strip()
             # lcords = '554x, 363y'
@@ -361,7 +388,7 @@ class ProviderStandardEvent:
                 if they specified to completely drop the event so that
                 the output is not displayed to the console.
             '''
-            res = self.game.pushevent('whereami', area, lcords, gcords)
+            res = self.game.pushevent('whereami', area, zone, cont, lcords, gcords)
             if type(res) == tuple:
                 if res[1] is True:
                     # drop this event right where it is since it has been intercepted
@@ -369,24 +396,31 @@ class ProviderStandardEvent:
 
         parts = _line.split(' ')
         if len(parts) > 3:
-            if parts[1] == 'tells' and parts[2] == 'you' and parts[3].startswith("'"):
-                who = parts[0]
-                msg = ' '.join(parts[3:]).strip("'")
-                if _line[-1] != "'":
-                    self.privmsg_nextline_tome = [who, line]
-                else:
-                    self.game.pushevent('tell', who, '$me', line)
-                return
+            #ensure name is of valid characters
+            good = True
+            for l in parts[0]:
+                if not l.isalpha():
+                    good = False
+                    break
+            if good:
+                if parts[1] == 'tells' and parts[2] == 'you' and parts[3].startswith("'"):
+                    who = parts[0]
+                    msg = ' '.join(parts[3:]).strip("'")
+                    if _line[-1] != "'":
+                        self.privmsg_nextline_tome = [who, line]
+                    else:
+                        self.game.pushevent('tell', who, '$me', line)
+                    return
 
-            #l:b"\x1b[1;37mYou tell Wick 'how many you done so far?'\x1b[0m"
-            if parts[0] == 'You' and parts[1] == 'tell':
-                who = parts[2]
-                msg = _line[_line.find('\'') + 1:].strip('\'')
-                if _line[-1] != "'":
-                    self.privmsg_nextline_fome = [who, line]
-                else:
-                    self.game.pushevent('tell', '$me', who, line)
-                return
+                #l:b"\x1b[1;37mYou tell Wick 'how many you done so far?'\x1b[0m"
+                if parts[0] == 'You' and parts[1] == 'tell':
+                    who = parts[2]
+                    msg = _line[_line.find('\'') + 1:].strip('\'')
+                    if _line[-1] != "'":
+                        self.privmsg_nextline_fome = [who, line]
+                    else:
+                        self.game.pushevent('tell', '$me', who, line)
+                    return
             # it was not part of a tell message
 
         # rift walker entity support for events

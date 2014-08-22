@@ -219,7 +219,17 @@ class QChannelManager:
         qconsole.hide()
         qconsole.setupdowncallback(self.updowncallback)
         qconsole.setcommandchangedcallback(self.commandchangedcallback)
-        tabwidget.addTab(qconsole, title)
+
+        def __close():
+            tabwidget.removeWidget(qconsole)
+
+        menu = QtGui.QMenu(self.parent)
+        if '$all' not in channels and '$battle' not in channels:
+            a1 = QtGui.QAction('Close', self.parent)
+            a1.triggered.connect(__close)
+            menu.addAction(a1)
+
+        tabwidget.addTab(qconsole, title, menu)
         qconsole.show()
 
         qconsole.chanlist = channels
@@ -248,9 +258,6 @@ class QChannelManager:
         qconsole.show()
         return qconsole
 
-    def tab_contextmenu_event(self, tabwidget):
-        print('CONTEXT MENU')
-
     def createchannelgroup(self, channelgroups = {}):
         """Create a new channel group window.
         """
@@ -265,8 +272,9 @@ class QChannelManager:
         clientarea.setObjectName('Test')
         qtabwidget.setMovable(True)
         qtabwidget.show()
+
         # setup ability to right click on tab widget and get a menu
-        qtabwidget.contextMenuEvent = lambda event: self.tab_contextmenu_event(qtabwidget)
+        #qtabwidget.contextMenuEvent = lambda event: self.tab_contextmenu_event(qtabwidget, event)
 
         chgrpwidget.qtabwidget = qtabwidget
         def __resizeEvent(event):
