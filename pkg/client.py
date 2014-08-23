@@ -64,10 +64,10 @@ class Client:
                 print(e)
                 time.sleep(3)
                 continue
-            try:
-                self.reader_inner()
-            except Exception as e:
-                print(e) 
+            #try:
+            self.reader_inner()
+            #except Exception as e:
+            #    print(e) 
             # signal connection is dead
             self.outque.append((4, None))
 
@@ -145,27 +145,29 @@ class Client:
                 chunk = chunk[4:]
                 continue
             while True:
-                # is it a one byte code or multiple byte code
-                if chunk[3] < ord('0') or chunk[3] > ord('9'):
-                    tsz = 3
-                    isz = 2
-                else:
-                    tsz = 4
-                    isz = 2
-                tag = chunk[0:tsz]
-                etag =  b'\x1b>' + tag[isz:]
-                if chunk.find(etag) > -1:
-                    tagi = chunk.find(etag)
-                    block = chunk[0:tagi + tsz]
-                    slack = chunk[tagi + tsz:]
-                    self.fdbldump.write('b:%s\n' % block)
-                    self.fdbldump.flush()
-                    self.outque.append((2, block))
-                    if len(slack) > 0:
-                        chunk = slack
+                # make sure we have enough data to check...
+                if len(chunk) > 3:
+                    # is it a one byte code or multiple byte code
+                    if chunk[3] < ord('0') or chunk[3] > ord('9'):
+                        tsz = 3
+                        isz = 2
                     else:
-                        chunk = b''
-                    break
+                        tsz = 4
+                        isz = 2
+                    tag = chunk[0:tsz]
+                    etag =  b'\x1b>' + tag[isz:]
+                    if chunk.find(etag) > -1:
+                        tagi = chunk.find(etag)
+                        block = chunk[0:tagi + tsz]
+                        slack = chunk[tagi + tsz:]
+                        self.fdbldump.write('b:%s\n' % block)
+                        self.fdbldump.flush()
+                        self.outque.append((2, block))
+                        if len(slack) > 0:
+                            chunk = slack
+                        else:
+                            chunk = b''
+                        break
                 data = sock.recv(4096)
                 if not data:
                     return

@@ -99,7 +99,20 @@ class ProviderStandardEvent:
             return True
 
         # ignore this until we can do something with it later
+        #b:b'\x1b<99BAT_MAPPER;;chateau de le bigeaul;;$apr1$dF!!_X#W$oyx0ODRxiig4sV/BvlDZd0;;south;;0;
+        #;a branch on the road;;You are on a branch of the road. One of the branches leads  southeast
+        # towards\r\na little hill. The second branch leads  southwestwards through fields and\r\nfarmland.
+        # On the top of the hill stands a gracious looking castle. There is a\r\nsign standing by the road.
+        #\r\n;;north,southeast,southwest;;\x1b>99'
         if block.find(b'\x1b<99BAT_MAPPER') == 0:
+            parts = block.split(b';')
+            if len(parts) > 4:
+                zone = parts[2].decode('utf8')
+                xid = parts[4].decode('utf8')
+                lastmove = parts[6].decode('utf8')
+                desc = parts[12].decode('utf8')
+                moves = parts[14].decode('utf8')
+                self.game.pushevent('batmapper', zone, xid, lastmove, desc, moves)
             return True
 
         # look for the odd unwrapped sequence of blocks

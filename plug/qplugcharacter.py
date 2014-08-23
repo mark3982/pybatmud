@@ -88,6 +88,7 @@ class QPlugCharacter(QSubWindow):
     def __init__(self, pwin, game):
         super().__init__(pwin)
         self.myclass = None
+        self.game = game
 
         game.registerforevent('stats', self.event_stats)
         game.registerforevent('riftentitystats', self.event_riftentitystats)
@@ -152,7 +153,8 @@ class QPlugCharacter(QSubWindow):
             hpd = hp[0] - self.elast[0]
             if hpd != 0:
                 posoff = (-random.randint(0, 20), 0)
-                rl = QRisingLabel(self.parent(), '%s' % hpd, 'RisingLabelPointsEntityHealth', posoff) 
+                rl = QRisingLabel(self.parent(), '%s' % hpd, 'RisingLabelPointsEntityHealth', posoff)
+                self.game.command('party say entity:%s/%s (%+d)' % (hp[0], hp[1], hpd))
 
         self.elast = hp
 
