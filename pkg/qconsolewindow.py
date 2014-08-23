@@ -242,6 +242,9 @@ class QConsoleWindow(QtGui.QWidget):
         self.fgcolor = self.nfgcolor
         self.bgcolor = self.nbgcolor
 
+    def sethtml(self, html):
+        self.wp.setHtml(html)
+
     def processline(self, line, fgdef = None, bgdef = None):
         """Add line but convert terminal codes into HTML and convert from bytes to string.
         """

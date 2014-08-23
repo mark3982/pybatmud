@@ -204,7 +204,7 @@
 
 /* html console window */
 body { 
-    color:              black;              /* is overidden by .hc_* classes anyway */
+    color:              white;              /* is overidden by .hc_* classes anyway */
     /* background-color:   #345634; if enabled will provide a neat effect */
     font-family:        consolas; 
     font-size:          10pt;

@@ -335,24 +335,27 @@ class QPlugMapper(QSubWindow):
             if len(parts) > 1 and parts[1] == 'findout':
                 self.game.pushevent('lineunknown', b'\x1b#ffffffmmapper: Entrance And/Or Exit Shortest Path')
                 goal = self.findpath(self.goalcheck_enterorexit)
-                for history, meta in goal:
-                    zone = meta['zone']
-                    if len(zone[history[-1][0]]['entered']) > 0:
+                for history in goal:
+                    zonename = history[-1][0]
+                    roomname = history[-1][1]
+                    zone = self.batmap[zonename]
+                    room = zone[roomname]
+                    if len(room['entered']) > 0:
                         prefix = []
-                        for txt in zone[history[-1][0]]['entered']:
+                        for txt in room['entered']:
                             prefix.append('%s' % txt)
                         prefix = b'   (out)' + bytes('|'.join(prefix), 'utf8')
                         self.game.pushevent('lineunknown', prefix)
-                    if len(zone[history[-1][0]]['exited']) > 0:
+                    if len(room['exited']) > 0:
                         prefix = []
-                        for txt in zone[history[-1][0]]['exited']:
+                        for txt in room['exited']:
                             prefix.append('%s' % txt)
                         prefix = b'   (in)' + bytes('|'.join(prefix), 'utf8')
                         self.game.pushevent('lineunknown', prefix)
                     line = []
                     # drop the first node
                     history = history[1:]
-                    for xid, action in history:
+                    for zonename, roomname, action in history:
                         line.append('%s->' % action)
                     line = bytes(''.join(line), 'utf8')
                     self.game.pushevent('lineunknown', b'     \x1b#99ff99m->' + line)
@@ -361,24 +364,33 @@ class QPlugMapper(QSubWindow):
                 self.game.pushevent('lineunknown', b'\x1b#ffffffmmapper: Unexplored Rooms')
                 goal = self.findpath(self.goalcheck_newcheck)
                 for x in range(0, min(len(goal), 5)):
-                    history, meta = goal[x]
-                    zone = meta['zone']
-                    endxid = history[-1][0]
+                    history = goal[x]
+                    endzonename = history[-1][0]
+                    endroomname = history[-1][1]
+
                     line = []
                     # drop the first node
-                    history = history[1:]
-                    for xid, action in history:
+                    for zonename, roomname, action in history:
                         line.append('%s->' % action)
 
                     # figure out which moves have never been made
-                    goalroom = zone[endxid]
+                    goalroom = self.batmap[endzonename][endroomname]
 
                     havedonemoves = set()
-                    for xid, lastmove in goalroom['forward']:
-                        havedonemoves.add(lastmove)
+
+                    for zoneandroom, move in goalroom['backward']:
+                        havedonemoves.add(move)
+
+                    for zoneandroom, move in goalroom['forward']:
+                        havedonemoves.add(move)
+
+                    dprint('endzonename:', endzonename)
+                    dprint('endroomname:',endroomname)
+                    dprint('havedonemove', havedonemoves)
 
                     sub = []
                     for move in goalroom['moves']:
+                        print('   check-move:%s' % move)
                         if move not in havedonemoves:
                             sub.append(move)
                     line.append('\x1b#9999ddm[%s]' % '|'.join(sub))
@@ -388,32 +400,49 @@ class QPlugMapper(QSubWindow):
 
             return (True, True)
     def goalcheck_newcheck(self, zone, xid):
-        if len(zone[xid]['forward']) < len(zone[xid]['moves']):
-            return {'zone': zone }
+        zone = self.batmap[zone]
+        room = zone[xid]
+
+        havedonemoves = set()
+        for zoneandroom, move in room['backward']:
+            havedonemoves.add(move)
+        for zoneandroom, move in room['forward']:
+            havedonemoves.add(move)
+
+        for move in room['moves']:
+            if move not in havedonemoves:
+                return True
         return False
 
     def goalcheck_enterorexit(self, zone, xid):
-        if len(zone[xid]['entered']) > 0 or len(zone[xid]['exited']) > 0:
-            return { 'zone': zone }
+        zone = self.batmap[zone]
+        room = zone[xid]
+        if len(room['entered']) > 0 or len(room['exited']) > 0:
+            return True
         return False
 
     def findpath(self, goalcheck):
         if self.lastbatmapper is None:
             self.game.pushevent('lineunknown', b'mapper: not inside zone - assuming your in the world (try moving)!')
             return []
-        zone = self.batmap[self.lastbatmapper[0]]
+        thiszone = self.lastbatmapper[0]
+        zone = self.batmap[thiszone]
         self.game.pushevent('lineunknown', bytes('  Searching %s Rooms' % len(zone), 'utf8'))
-        xid = self.lastbatmapper[1]
+        thisxid = self.lastbatmapper[1]
         goal = []
         visited = set()
         bugs = []
-        bugs.append((xid, [(xid, 'start')]))
-        visited.add(xid)
+        bugs.append((thiszone, thisxid, [(thiszone, thisxid, 'start')]))
+        res = goalcheck(thiszone, thisxid)
+        if res is not False:
+            goal.append([(thiszone, thisxid, 'start')])
+        visited.add((thiszone, thisxid))
         while len(bugs) > 0:
             _bugs = []
             # iterate through parents letting them create child bugs
-            for bug, history in bugs:
-                place = zone[bug]
+            for thiszone, thisxid, history in bugs:
+                zone = self.batmap[thiszone]
+                place = zone[thisxid]
                 forward = place['forward']
                 backward = place['backward']
                 _combined = set()
@@ -423,25 +452,26 @@ class QPlugMapper(QSubWindow):
                     _combined.add(action)
 
                 for action in _combined:
-                    toxid = action[0]
-                    if toxid in visited:
+                    tozone, toxid = action[0]
+                    if (tozone, toxid) in visited:
                         # if we been here before dont go back to it
                         continue
                     tomove = action[1]
                     # create new child bug that inherits parent history
-                    nhistory = history + [(toxid, tomove)]
-                    _bugs.append((toxid, nhistory))
-                    res = goalcheck(zone, toxid)
-                    if res is not False:
-                        goal.append((nhistory, res))
-                    visited.add(toxid)
+                    nhistory = history + [(tozone, toxid, tomove)]
+                    _bugs.append((tozone, toxid, nhistory))
+                    res = goalcheck(tozone, toxid)
+                    if res:
+                        goal.append(nhistory)
+                    visited.add((tozone, toxid))
             # parent die and children become parents
             bugs = _bugs
         # should have zero or more goals
         return goal
     def batmapflush(self):
         fd = open('./mapper/batmap', 'w')
-        pprint(self.batmap, fd)
+        #pprint(self.batmap, fd)
+        fd.write('%s' % self.batmap)
         fd.close()
 
     def batmapload(self):
@@ -457,8 +487,15 @@ class QPlugMapper(QSubWindow):
             self.batmap = {}
 
     def event_batmapper(self, event, thiszone, xid, lastmove, desc, moves):
+
+        dprint('thiszone', thiszone)
+        dprint('thisroom', xid)
+        dprint('lastmove', lastmove)
+        dprint('desc', desc[0:10].replace('\n', '').replace('\r', ''))
+        dprint('moves', moves)
+
         _moves = moves.split(',')
-        moves = []
+        moves = set()
         mi = {
             'n':    's',
             's':    'n',
@@ -478,9 +515,9 @@ class QPlugMapper(QSubWindow):
         }
         for move in _moves:
             if move in m:
-                moves.append(m[move])
+                moves.add(m[move])
             else:
-                moves.append(move)
+                moves.add(move)
 
         # normalize it
         if lastmove in m:
@@ -507,13 +544,17 @@ class QPlugMapper(QSubWindow):
             lastxid = self.lastbatmapper[1]
             if lastzone == thiszone:
                 # add backward link
-                zone[xid]['backward'].add((lastxid, lastmoveinvert))
+                dprint('lastmoveinvert:%s lastmove:%s' % (lastmoveinvert, lastmove))
+                zone[xid]['backward'].add(((lastzone, lastxid), lastmoveinvert))
                 # add forward link
-                zone[lastxid]['forward'].add((xid, lastmove))
+                zone[lastxid]['forward'].add(((thiszone, xid), lastmove))
             else:
-                # we came from another zone
+                # mark we entered here
                 zone[xid]['entered'].add(lastzone)
-                zone[lastzone]['exited'].add(thiszone)
+                zone[xid]['backward'].add(((lastzone, lastxid), lastmoveinvert))
+                # mark we exited here
+                self.batmap[lastzone][lastxid]['exited'].add(thiszone)
+                self.batmap[lastzone][lastxid]['forward'].add(((thiszone, xid), lastmove))
         else:
             if self.wasoutside is True:
                 # we came from the world
@@ -525,6 +566,8 @@ class QPlugMapper(QSubWindow):
 
         zone[xid]['desc'] = desc
         zone[xid]['moves'] = moves
+
+        dprint('added entry zone:%s xid:%s moves:%s' % (thiszone, xid, moves))
 
         self.wasoutside = False
         self.lastbatmapper = (thiszone, xid, lastmove, desc, moves)

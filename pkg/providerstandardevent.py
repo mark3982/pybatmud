@@ -111,7 +111,7 @@ class ProviderStandardEvent:
                 xid = parts[4].decode('utf8')
                 lastmove = parts[6].decode('utf8')
                 desc = parts[12].decode('utf8')
-                moves = parts[14].decode('utf8')
+                moves = parts[-3].decode('utf8')
                 self.game.pushevent('batmapper', zone, xid, lastmove, desc, moves)
             return True
 

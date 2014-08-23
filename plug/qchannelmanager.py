@@ -11,6 +11,8 @@ are represented by tabs.
 
 Author: LK McGuire (kmcg3413@gmail.com)
 """
+import os.path
+
 from PyQt4 import QtCore
 from PyQt4 import QtGui
 
@@ -37,6 +39,7 @@ class QChannelManager:
         self.mainchgrpwidget = self.createchannelgroup({
             'All':      ('$all',),        # first tab channel named All
             'Battle':   ('$battle',),
+            'Readme':   ('$readme',),
         })
 
         game.registerforevent('prompt', self.event_prompt, Priority.Normal)
@@ -254,6 +257,18 @@ class QChannelManager:
             if channels[0][0] == '!':
                 # add prefix for talking over tells to player
                 qconsole.setcommandprefix('tell %s ' % (channels[0][1:]))
+            if channels[0] == '$readme':
+                if os.path.exists('README'):
+                    readme = 'README'
+                if os.path.exists('./client/README'):
+                    readme = './client/README'
+                fd = open(readme, 'r')
+                dprint('readme', 'rb')
+                lines = fd.readlines()
+                for line in lines:
+                    line = bytes(line, 'utf8').strip(b'\r\n').replace(b'\\x1b', b'\x1b')
+                    self.addlinetoconsole(qconsole, line)
+                fd.close()
 
         qconsole.commandEvent = self.commandEvent
         qconsole.show()
