@@ -64,10 +64,10 @@ class Client:
                 print(e)
                 time.sleep(3)
                 continue
-            #try:
-            self.reader_inner()
-            #except Exception as e:
-            #    print(e) 
+            try:
+                self.reader_inner()
+            except Exception as e:
+                print(e) 
             # signal connection is dead
             self.outque.append((4, None))
 

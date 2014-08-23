@@ -3,6 +3,7 @@ import os.path
 import struct
 import array
 import time
+from pprint import pprint
 
 from PyQt4 import QtCore
 from PyQt4 import QtGui
@@ -129,9 +130,9 @@ class QPlugMapper(QSubWindow):
 
         self.csz = 1
 
-        self.batmap = {}
+        self.batmapload()
         self.lastbatmapper = None
-        self.lastzone = None
+        self.wasoutside = None
 
     def paintEvent(self, event):
         self.rendermap()
@@ -332,60 +333,130 @@ class QPlugMapper(QSubWindow):
                     # specify to drop propagation of event and not to forward command
                     return (True, True)
             if len(parts) > 1 and parts[1] == 'findout':
-                if self.lastbatmapper is None:
-                    self.game.pushevent('lineunknown', b'mapper: no history')
-                    return (True, True)
-                zone = self.batmap[self.lastbatmapper[0]]
-                xid = self.lastbatmapper[1]                
-                ingoals = []
-                outgoals = []
-                visited = set()
-                bugs = []
-                bugs.append((xid, [('start', 'start')]))
-                visited.add(xid)
-                while len(bugs) > 0:
-                    _bugs = []
-                    # iterate through parents letting them create child bugs
-                    for bug, history in bugs:
-                        dprint('parent:%s' % (history[-1]))
-                        place = zone[bug]
-                        forward = place['forward']
-                        for action in forward:
-                            toxid = action[0]
-                            if toxid in visited:
-                                # if we been here before dont go back to it
-                                continue
-                            dprint('    made child:%s' % (history[-1], toxid))
-                            tomove = action[1]
-                            # create new child bug that inherits parent history
-                            nhistory = history + [(toxid, tomove)]
-                            _bugs.append((toxid, nhistory))
-                            if zone[toxid]['entered']:
-                                ingoals.append(nhistory)
-                            if zone[toxid]['exited']:
-                                outgoals.append(nhistory)
-                            visited.add(xid)
-                    # parent die and children become parents
-                    bugs = _bugs
-                # should have zero or more goals
-                self.game.pushevent('lineunknown', b'mapper: Paths')
-                for history in ingoals + outgoals:
-                    if zone[history[-1]]['entered']:
-                        prefix = 'back'
-                    else:
-                        prefix = 'forward'
-                    prefix = bytes(prefix.ljust(10), 'utf8')
+                self.game.pushevent('lineunknown', b'\x1b#ffffffmmapper: Entrance And/Or Exit Shortest Path')
+                goal = self.findpath(self.goalcheck_enterorexit)
+                for history, meta in goal:
+                    zone = meta['zone']
+                    if len(zone[history[-1][0]]['entered']) > 0:
+                        prefix = []
+                        for txt in zone[history[-1][0]]['entered']:
+                            prefix.append('%s' % txt)
+                        prefix = b'   (out)' + bytes('|'.join(prefix), 'utf8')
+                        self.game.pushevent('lineunknown', prefix)
+                    if len(zone[history[-1][0]]['exited']) > 0:
+                        prefix = []
+                        for txt in zone[history[-1][0]]['exited']:
+                            prefix.append('%s' % txt)
+                        prefix = b'   (in)' + bytes('|'.join(prefix), 'utf8')
+                        self.game.pushevent('lineunknown', prefix)
                     line = []
+                    # drop the first node
+                    history = history[1:]
                     for xid, action in history:
                         line.append('%s->' % action)
                     line = bytes(''.join(line), 'utf8')
-                    self.game.pushevent('lineunknown', b'  ' + prefix + b'->' + line)
-                return (True, True)
+                    self.game.pushevent('lineunknown', b'     \x1b#99ff99m->' + line)
+
+            if len(parts) > 1 and parts[1] == 'findnew':
+                self.game.pushevent('lineunknown', b'\x1b#ffffffmmapper: Unexplored Rooms')
+                goal = self.findpath(self.goalcheck_newcheck)
+                for x in range(0, min(len(goal), 5)):
+                    history, meta = goal[x]
+                    zone = meta['zone']
+                    endxid = history[-1][0]
+                    line = []
+                    # drop the first node
+                    history = history[1:]
+                    for xid, action in history:
+                        line.append('%s->' % action)
+
+                    # figure out which moves have never been made
+                    goalroom = zone[endxid]
+
+                    havedonemoves = set()
+                    for xid, lastmove in goalroom['forward']:
+                        havedonemoves.add(lastmove)
+
+                    sub = []
+                    for move in goalroom['moves']:
+                        if move not in havedonemoves:
+                            sub.append(move)
+                    line.append('\x1b#9999ddm[%s]' % '|'.join(sub))
+
+                    line = bytes(''.join(line), 'utf8')
+                    self.game.pushevent('lineunknown', b'     \x1b#99ff99m->' + line)
+
             return (True, True)
+    def goalcheck_newcheck(self, zone, xid):
+        if len(zone[xid]['forward']) < len(zone[xid]['moves']):
+            return {'zone': zone }
+        return False
+
+    def goalcheck_enterorexit(self, zone, xid):
+        if len(zone[xid]['entered']) > 0 or len(zone[xid]['exited']) > 0:
+            return { 'zone': zone }
+        return False
+
+    def findpath(self, goalcheck):
+        if self.lastbatmapper is None:
+            self.game.pushevent('lineunknown', b'mapper: not inside zone - assuming your in the world (try moving)!')
+            return []
+        zone = self.batmap[self.lastbatmapper[0]]
+        self.game.pushevent('lineunknown', bytes('  Searching %s Rooms' % len(zone), 'utf8'))
+        xid = self.lastbatmapper[1]
+        goal = []
+        visited = set()
+        bugs = []
+        bugs.append((xid, [(xid, 'start')]))
+        visited.add(xid)
+        while len(bugs) > 0:
+            _bugs = []
+            # iterate through parents letting them create child bugs
+            for bug, history in bugs:
+                place = zone[bug]
+                forward = place['forward']
+                backward = place['backward']
+                _combined = set()
+                for action in forward:
+                    _combined.add(action)
+                for action in backward:
+                    _combined.add(action)
+
+                for action in _combined:
+                    toxid = action[0]
+                    if toxid in visited:
+                        # if we been here before dont go back to it
+                        continue
+                    tomove = action[1]
+                    # create new child bug that inherits parent history
+                    nhistory = history + [(toxid, tomove)]
+                    _bugs.append((toxid, nhistory))
+                    res = goalcheck(zone, toxid)
+                    if res is not False:
+                        goal.append((nhistory, res))
+                    visited.add(toxid)
+            # parent die and children become parents
+            bugs = _bugs
+        # should have zero or more goals
+        return goal
+    def batmapflush(self):
+        fd = open('./mapper/batmap', 'w')
+        pprint(self.batmap, fd)
+        fd.close()
+
+    def batmapload(self):
+        if os.path.exists('./mapper/batmap'):
+            fd = open('./mapper/batmap', 'r')
+            data = fd.read()
+            if len(data) > 0:
+                self.batmap = eval(data)
+            else:
+                self.batmap = {}
+            fd.close()
+        else:
+            self.batmap = {}
 
     def event_batmapper(self, event, thiszone, xid, lastmove, desc, moves):
-        dprint(thiszone, xid, lastmove, desc, moves)
-
         _moves = moves.split(',')
         moves = []
         mi = {
@@ -428,20 +499,25 @@ class QPlugMapper(QSubWindow):
             zone[xid]['backward'] = set()
             zone[xid]['desc'] = None
             zone[xid]['moves'] = None
-            zone[xid]['entered'] = False
-            zone[xid]['exited'] = False
+            zone[xid]['entered'] = set()
+            zone[xid]['exited'] = set()
 
         if self.lastbatmapper is not None:
             lastzone = self.lastbatmapper[0]
             lastxid = self.lastbatmapper[1]
-            if lastzone == zone:
+            if lastzone == thiszone:
                 # add backward link
                 zone[xid]['backward'].add((lastxid, lastmoveinvert))
                 # add forward link
                 zone[lastxid]['forward'].add((xid, lastmove))
+            else:
+                # we came from another zone
+                zone[xid]['entered'].add(lastzone)
+                zone[lastzone]['exited'].add(thiszone)
         else:
-            if self.lastzone is not None:
-                zone['entered'] = True
+            if self.wasoutside is True:
+                # we came from the world
+                zone[xid]['entered'].add('world')
 
         if zone[xid]['desc'] is not None and zone[xid]['desc'] != desc:
             # well.. we must be in a maze.. or something crazy
@@ -450,11 +526,16 @@ class QPlugMapper(QSubWindow):
         zone[xid]['desc'] = desc
         zone[xid]['moves'] = moves
 
-        self.game.pushevent('lineunknown', b'\x1b#99ff99mnotice: updated batmap')
-
+        self.wasoutside = False
         self.lastbatmapper = (thiszone, xid, lastmove, desc, moves)
 
+        self.batmapflush()
+
     def event_map(self, event, xmap):
+        if self.lastbatmapper is not None:
+            lbm = self.lastbatmapper
+            self.batmap[lbm[0]][lbm[1]]['exited'].add('world')
+
         self.game.command('whereami')
         self.whereami_intercept = True
         self.lastxmap = xmap
@@ -466,14 +547,13 @@ class QPlugMapper(QSubWindow):
                 # not insize a zone (lcords and gcords accurate)
                 if self.lastbatmapper is not None:
                     # mark this unit of the zone as an exit
-                    self.batmap[self.lastbatmapper[0]][self.lastbatmapper[1]]['exited'] = True
+                    self.batmap[self.lastbatmapper[0]][self.lastbatmapper[1]]['exited'].add('world')
                 self.lastbatmapper = None
                 self.processmap(self.lastxmap, lcords, gcords)
-                self.lastzone = zone
-                self.game.pushevent('lineunknown', b'\x1b#99ff99mnotice: mapper: updated map')
+                self.wasoutside = True
             else:
                 # inside a zone
-                self.game.pushevent('lineunknown', b'\x1b#99ff99mnotice: mapper: inside zone')
+                pass
 
             self.whereami_intercept = False
             return True, True
