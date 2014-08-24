@@ -4,6 +4,7 @@ import struct
 import array
 import time
 from pprint import pprint
+import tracemalloc
 
 from PyQt4 import QtCore
 from PyQt4 import QtGui
@@ -135,7 +136,10 @@ class QPlugMapper(QSubWindow):
         self.wasoutside = None
 
     def paintEvent(self, event):
-        self.rendermap()
+        if self.lastbatmapper is not None:
+            self.renderbatmap()
+        else:
+            self.rendermap()
 
     def zoomout(self):
         self.csz = self.csz * 0.5
@@ -151,6 +155,81 @@ class QPlugMapper(QSubWindow):
             line = '%s\x19%s\x19%s' % (note[0], note[1], note[2])
             fd.write('%s\n' % line)
         fd.close()
+
+    def renderbatmap(self):
+        p = QtGui.QPainter()
+        p.begin(self)
+        p.setPen(QtCore.Qt.white)
+        p.setFont(QtGui.QFont('consolas', 8))
+
+        thiszone = self.lastbatmapper[0]
+        thisroom = self.lastbatmapper[1]
+
+        batmap = self.batmap
+
+        cx = self.width() * 0.5
+        cy = self.height() * 0.5
+
+        bugs = []
+
+        bug = (thiszone, thisroom, cx, cy, 0xffffff)
+        bugs.append(bug)
+
+        visited = set()
+        visited.add((thiszone, thisroom))
+
+        om = {
+            'n':    (+0, -1),
+            's':    (+0, +1),
+            'e':    (+1, +0),
+            'w':    (-1, +0),
+            'ne':   (+1, -1),
+            'se':   (+1, +1),
+            'sw':   (-1, +1),
+            'nw':   (-1, -1),
+        }
+
+        scale = 10
+        pad = 1
+
+        while len(bugs) > 0:
+            _bugs = []
+            for thiszone, thisroom, cx, cy, color in bugs:
+                # draw bug
+                p.setPen(QtGui.QColor(color))
+                p.drawRect(cx + pad, cy + pad, scale - pad * 2, scale - pad * 2)
+
+                zone = batmap[thiszone]
+                room = zone[thisroom]
+
+                cango = set()
+                havemoved = set()
+                for location, move in room['forward']:
+                    cango.add((location, move))
+                    havemoved.add(move)
+                for location, move in room['backward']:
+                    cango.add((location, move))
+                    havemoved.add(move)
+                notmoved = set()
+                for move in room['moves']:
+                    if move not in havemoved:
+                        notmoved.add(move)
+                # create children
+                for location, move in cango:
+                    if location in visited:
+                        # dont go to the same place twice
+                        continue
+                    if move in om:
+                        off = om[move]
+                        _cx = cx + off[0] * scale
+                        _cy = cy + off[1] * scale
+                    else:
+                        continue
+                    _bugs.append((location[0], location[1], _cx, _cy, 0x99ff99))
+                    visited.add(location)
+            bugs = _bugs
+
+        p.end()
 
     def rendermap(self):
         if self.lastcord is None:
@@ -323,15 +402,58 @@ class QPlugMapper(QSubWindow):
         parts = command.split(' ')
 
         if len(parts) > 0 and parts[0] == 'mapper':
+            if len(parts) > 1 and parts[1] == 'totals':
+                zonecount = 0
+                roomcount = 0
+                for zone in self.batmap:
+                    zonecount += 1
+                    for room in zone:
+                        roomcount += 1
+                self.game.pushevent('lineunknown', bytes('\x1b#ffffffmapper: tracking %s zones and %s rooms!' % (zonecount, roomcount), 'utf8'))
             if len(parts) > 1 and parts[1] == 'addnote':
                 note = ' '.join(parts[2:])
-                if self.lastcord is not None:
-                    cx = self.lastcord[0]
-                    cy = self.lastcord[1]
-                    self.notes.append([cx, cy, note, None])
-                    self.notesflush()
-                    # specify to drop propagation of event and not to forward command
-                    return (True, True)
+                if self.lastbatmapper is None:
+                    if self.lastcord is not None:
+                        cx = self.lastcord[0]
+                        cy = self.lastcord[1]
+                        self.notes.append([cx, cy, note, None])
+                        self.notesflush()
+                        # specify to drop propagation of event and not to forward command
+                        self.game.pushevent('lineunknown', b'mapper: added note to world')
+                        return (True, True)
+                else:
+                    zonename = self.lastbatmapper[0]
+                    roomname = self.lastbatmapper[1]
+                    room = self.batmap[zonename][roomname]
+                    if 'notes' not in room:
+                        room['notes'] = []
+                    room['notes'].append(note)
+                    self.game.pushevent('lineunknown', b'mapper: added note to dungeon')
+            if len(parts) > 1 and parts[1] == 'navtoroom':
+                if len(parts) < 3:
+                    self.game.pushevent('lineunknown', b'mapper: need target room name')
+                else:
+                    pass
+
+            if len(parts) > 1 and parts[1] == 'tracemalloc':
+                ss = tracemalloc.take_snapshot()
+                top_stats = ss.statistics('lineno')
+                for stat in top_stats[0:30]:
+                    print(stat)
+
+            if len(parts) > 1 and parts[1] == 'listnotes':
+                if self.lastbatmapper is None:
+                    self.game.pushevent('lineunknown', b'mapper: not inside dungeon (look at map for world maybe..)')
+                else:
+                    zonename = self.lastbatmapper[0]
+                    zone = self.batmap[zonename]
+                    for roomname in zone:
+                        room = zone[roomname]
+                        if 'notes' in room:
+                            self.game.pushevent('lineunknown', b'  ' + bytes(roomname, 'utf8'))
+                            for note in room['notes']:
+                                self.game.pushevent('lineunknown', b'    ' + bytes(note, 'utf8'))
+
             if len(parts) > 1 and parts[1] == 'findout':
                 self.game.pushevent('lineunknown', b'\x1b#ffffffmmapper: Entrance And/Or Exit Shortest Path')
                 goal = self.findpath(self.goalcheck_enterorexit)
@@ -574,6 +696,8 @@ class QPlugMapper(QSubWindow):
 
         self.batmapflush()
 
+        self.update()
+
     def event_map(self, event, xmap):
         if self.lastbatmapper is not None:
             lbm = self.lastbatmapper
@@ -595,8 +719,10 @@ class QPlugMapper(QSubWindow):
                 self.processmap(self.lastxmap, lcords, gcords)
                 self.wasoutside = True
             else:
-                # inside a zone
-                pass
+                # generally if we get this during our interception it
+                # means we are in an area with a map so we can stop tracking
+                # using the batmap extension and it likely is not even being
+                self.lastbatmapper = None
 
             self.whereami_intercept = False
             return True, True

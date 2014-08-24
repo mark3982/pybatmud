@@ -5,6 +5,7 @@ import sys
 import os.path
 import os
 import sys
+import tracemalloc
 
 from PyQt4 import QtGui
 from PyQt4 import QtCore
@@ -102,6 +103,8 @@ class QLocalApplication(QtGui.QApplication):
         return None
 
 def main(standalone = False):
+    tracemalloc.start()
+
     if standalone:
         app = QLocalApplication(sys.argv)
         # Cleanlooks
