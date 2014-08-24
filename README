@@ -1,0 +1,57 @@
+        \x1b#ff9999mREADME
+ 
+This document is designed to help you learn about the features of the
+client, and to help get you started playing the game. We will first
+start with a short section on playing the game.
+ 
+        \x1b#ff9999mResources
+ 
+One of the best resouces is www.bat.org. After that you have the in
+game help system and newbie channel. The in game help system should
+be the first place you look for answers, then the newbie channel.
+ 
+To try the in game help system try typing `help help` in the command
+box. Before you type it switch to the `All` tab because the output 
+will be listen in that. You should see a listing of help topics. You can 
+do `help [topic]` to read a specific topic.
+ 
+The second way is by typing `newbie hello`. To talk to this channel
+prefix your message with `newbie`.
+ 
+        \x1b#ff9999mThe Features Of The Client
+ 
+You have:
+      * world map that is built as you explore the land.
+      * health, spirit, endurance, entity health bar
+      * monster health bar
+      * spell/skill bar
+      * mapper command
+ 
+        \x1b#ff9999mMapper Commands
+ 
+Some dungeons do not have a map. You have to rely on your memory or a pen and
+pad to navigate them with out getting lost and maybe stuck. The mapper plugin
+which provides the world map also features two command to help you navigate 
+these certain dungeons or zones.
+ 
+    mapper findout
+        This command when typed and entered will show you the path to any
+        known entrance or exit. If you type each navigation key you should
+        reach the entrance or exit (or both).
+    mapper findnew
+        This command when typed and entered will show you the path to any
+        room not explored in your current dungeon or zone.
+ 
+The mapper command may not work well inside mazes, and have not yet
+been tested. Also, if you login to a dungeon you may need to move one
+direction before using the commands or it will complain that you are
+not in a dungeon or zone.
+ 
+The dungeon maps are saved as created and loaded on startup. You may
+experience a problem if you are teleported into a dungeon and you have
+never be through the exit or entrance because it will not know where it
+is. In this case the `findout` command will return no results.
+
+
+
+
