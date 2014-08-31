@@ -12,6 +12,9 @@ are represented by tabs.
 Author: LK McGuire (kmcg3413@gmail.com)
 """
 import os.path
+import random
+import math
+import datetime
 
 from PyQt4 import QtCore
 from PyQt4 import QtGui
@@ -49,6 +52,40 @@ class QChannelManager:
         game.registerforevent('tell', self.event_tell, Priority.Normal)
         game.registerforevent('battlemessage', self.event_battlemessage, Priority.Normal)
 
+        self.pcolor = self.loadpcolor()
+
+    def savepcolor(self):
+        fd = open('pcolor', 'w')
+        fd.write('%s' % self.pcolor)
+        fd.close()
+
+    def pcolortupletohex(self, t):
+        return '%02x%02x%02x' 
+
+    def makepcolorfor(self, name):
+        r = random.randint(60, 255)
+        g = random.randint(60, 255)
+        b = random.randint(60, 255)
+        self.pcolor[name] = (r, g, b)
+
+    def getpcolorfor(self, name):
+        if name not in self.pcolor:
+            self.makepcolorfor(name)
+            # likely could be inefficient with a LOT of
+            # names, but will address that issue when the
+            # time comes for now lets employ KISS
+            self.savepcolor()
+
+        return '%02x%02x%02x' % (self.pcolor[name][0], self.pcolor[name][1], self.pcolor[name][2])
+
+    def loadpcolor(self):
+        if os.path.exists('pcolor'):
+            fd = open('pcolor', 'r')
+            pcolor = eval(fd.read())
+            fd.close()
+            return pcolor
+        return {}
+
     def event_battlemessage(self, event, line):
         for chgrp in self.chgrpwidgets:
             tabctrl = chgrp[1]
@@ -61,18 +98,24 @@ class QChannelManager:
     def event_channelmessage(self, event, chan, who, msg, line):
         added = False
         chan = ('#' + chan).lower()
+
+        pcolor = self.getpcolorfor(who)
+        now = datetime.datetime.now()
+        now = now.strftime('%m:%d:%H:%M')
+        fmsg = bytes('[%s] \x1b#%sm%s\x1bm: %s' % (now, pcolor, who.ljust(10), msg), 'utf8')
+
         for chgrp in self.chgrpwidgets:
             tabctrl = chgrp[1]
             for i in range(0, tabctrl.count()):
                 console = tabctrl.widget(i)
                 chanlist = console.chanlist
                 if chan in chanlist:
-                    self.addlinetoconsole(console, line)
+                    self.addlinetoconsole(console, fmsg)
                     added = True
         if not added:
             # automatically create a channel to hold conversation
             console = self.createchannel(self.mainchgrpwidget, (chan,), chan)
-            self.addlinetoconsole(console, line)
+            self.addlinetoconsole(console, fmsg)
 
     def event_prompt(self, event, prompt):
         """Set the prompt on all managed consoles.
@@ -154,10 +197,11 @@ class QChannelManager:
     def commandEvent(self, line):
         """When the command input on any channel window changes.
         """
-        # set history line
-        self.chistory[-1] = line
-        # make new history line
-        self.chistory.append('')
+        # set history line, only if not a movement command
+        if line not in {'n', 's', 'w', 'e', 'nw', 'ne', 'sw', 'se'}:
+            self.chistory[-1] = line
+            # make new history line
+            self.chistory.append('')
         res = self.game.pushevent('command', line)
         if res is True or (type(res) == tuple and res[0] is True):
             dprint('dropped command')
@@ -250,10 +294,11 @@ class QChannelManager:
                     'football', 'houses', 'infalert', 'mudcon',
                     'politics', 'sales', 'stream', 'wanted'
                 )
-                if channels[0][1:] in builtin:
-                    qconsole.setcommandprefix('%s ' % (channels[0][1:]))
-                else:
-                    qconsole.setcommandprefix('%s say ' % (channels[0][1:]))
+                # this actually became annoying..
+                #if channels[0][1:] in builtin:
+                #    qconsole.setcommandprefix('%s ' % (channels[0][1:]))
+                #else:
+                #    qconsole.setcommandprefix('%s say ' % (channels[0][1:]))
             if channels[0][0] == '!':
                 # add prefix for talking over tells to player
                 qconsole.setcommandprefix('tell %s ' % (channels[0][1:]))

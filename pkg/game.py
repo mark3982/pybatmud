@@ -7,6 +7,7 @@ from pkg.dprint import dprint
 
 class Priority:
     Monitor         =       100
+    VeryHigh        =       90
     High            =       75
     Medium          =       50
     Normal          =       50
@@ -19,6 +20,9 @@ class Game:
         Game._instance = self
         self.connected = False
         self.ereg = {}
+
+        self.cmdpending = []
+        self.cmdgrouplock = None
 
     def instance():
         return Game._instance
@@ -59,7 +63,28 @@ class Game:
                 break
         cbs.insert(x, (cb, priority))
 
-    def command(self, command):
+    def lockcmdgroup(self, group):
+        if self.cmdgrouplock is not None and self.cmdgrouplock != group:
+            # need to implement the ability to stack locks
+            raise Exception('Double Command Lock!!')
+        #self.cmdgrouplock = group
+
+    def unlockcmdgroup(self, group):
+        self.cmdgrouplock = None
+        for x in range(0, len(self.cmdpending)):
+            cmd = self.cmdpending[x]
+            self.c.writeline(cmd)
+        self.cmdpending = []
+
+    def command(self, command, group = 'default'):
+        if type(command) is str:
+            command = bytes(command, 'utf8')
+
+        if self.cmdgrouplock is not None and group != self.cmdgrouplock:
+            self.cmdpending.append(command)
+            self.pushevent('lineunknown', b'\x1b#ff9999mThe command `' + command + b'` is pending!')
+            return
+
         dprint('command', command)
         self.c.writeline(command)
 

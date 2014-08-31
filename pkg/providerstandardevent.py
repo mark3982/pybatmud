@@ -263,7 +263,7 @@ class ProviderStandardEvent:
             if syms is None:
                 print('OOPS', line, _line)
             else:
-                chwho = _line[0:_line.find(' ')]
+                chwho = _line[0:_line.find(syms[0])].strip()
                 chname = _line[_line.find(syms[0]) + 1:_line.find(syms[1])]
                 chmsg = _line[_line.find(':') + 1:].strip()
                 _line = line.replace(b'\n', b'')
@@ -323,7 +323,7 @@ class ProviderStandardEvent:
             who = self.privmsg_nextline_tome[0]
             line = b''.join(self.privmsg_nextline_tome[1:])
             self.privmsg_nextline_tome = False
-            self.game.pushevent('tell', who, '$me', msg, line)
+            self.game.pushevent('tell', who, '$me', line)
             return
         if self.privmsg_nextline_fome is not False:
             if _line[-1] != "'":

@@ -323,7 +323,7 @@ class QConsoleWindow(QtGui.QWidget):
                     if code[1] in self.colormap:
                         self.bgcolor = 'hc_bg_' % self.colormap[code[1]]
                     continue
-                raise Exception('Ignored Code "%s"' % code)
+                dprint('ignored code [%s]' % code)
 
             line.append('<span class=\\"%s %s\\">%s</span>' % (self.fgcolor, self.bgcolor, rmsg))
 

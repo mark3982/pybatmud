@@ -27,6 +27,7 @@ from plug.qchannelmanager import QChannelManager
 from plug.qplugspellman import QPlugSpellMan
 from plug.qplugmodhealth import QPlugMobHealth
 from plug.qplugmapper import QPlugMapper
+from plug.qplugmoblore import QPlugMobLore
 
 class QMainWindow(QtGui.QWidget):
     def __init__(self):
@@ -66,6 +67,7 @@ class QMainWindow(QtGui.QWidget):
         self.spellman = QPlugSpellMan(self, self.g)
         self.mobhealth = QPlugMobHealth(self, self.g)
         self.mapper = QPlugMapper(self, self.g)
+        self.moblore = QPlugMobLore(self, self.g)
         self.g.start()
 
         self.ticktimer = QtCore.QTimer(self)
